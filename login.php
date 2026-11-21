@@ -3,25 +3,36 @@ session_start();
 require_once 'config/database.php';
 
 if (isset($_SESSION['user'])) {
-    header("Location: dashboard.php");
+    $target = ((int)($_SESSION['user']['role_id'] ?? 3) === 2) ? 'staff_dashboard.php' : 'dashboard.php';
+    header("Location: " . $target);
     exit();
 }
 
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 $error = "";
+$emailValue = $_COOKIE['remember_email'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email      = trim($_POST['email'] ?? '');
+    $csrfToken  = $_POST['csrf_token'] ?? '';
+    $email      = strtolower(trim($_POST['email'] ?? ''));
     $password   = $_POST['password'] ?? '';
     $rememberMe = isset($_POST['remember_me']);
+    $emailValue = $email;
 
-    if (empty($email) OR empty($password)) {
+    if (!hash_equals($_SESSION['csrf_token'], $csrfToken)) {
+        $error = "Invalid session token. Please refresh the page and try again.";
+    } elseif (empty($email) OR empty($password)) {
         $error = "Please enter both your email and password.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "Please enter a valid email address.";
     } else {
         $stmt = $pdo->prepare("
-            SELECT u.user_id, u.role_id, u.full_name, u.email, u.password_hash, u.status, r.role_name
-            FROM users u
-            LEFT JOIN roles r ON u.role_id = r.role_id
-            WHERE u.email = ?
+            SELECT user_id, role_id, full_name, email, password_hash, status
+            FROM users
+            WHERE email = ?
             LIMIT 1
         ");
         $stmt->execute([$email]);
@@ -32,6 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = "Your account is currently inactive. Please contact an administrator.";
             } else {
                 session_regenerate_id(true);
+                $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
                 $roleId = (int)$user['role_id'];
                 $roleName = ($roleId === 1) ? 'Administrator' : (($roleId === 2) ? 'Staff' : 'Consumer');
 
@@ -46,15 +59,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     $pdo->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?")->execute([$user['user_id']]);
                 } catch (Exception $e) {}
+
                 log_activity($pdo, $user['user_id'], 'LOGIN', "Signed in as $roleName");
 
+                $isHttps = (!empty($_SERVER['HTTPS']) AND $_SERVER['HTTPS'] !== 'off');
                 if ($rememberMe) {
-                    setcookie('remember_email', $email, time() + (86400 * 30), "/", "", false, true);
+                    setcookie('remember_email', $user['email'], [
+                        'expires'  => time() + (86400 * 30),
+                        'path'     => '/',
+                        'secure'   => $isHttps,
+                        'httponly' => true,
+                        'samesite' => 'Lax'
+                    ]);
                 } else {
-                    setcookie('remember_email', '', time() - 3600, "/");
+                    setcookie('remember_email', '', [
+                        'expires'  => time() - 3600,
+                        'path'     => '/',
+                        'secure'   => $isHttps,
+                        'httponly' => true,
+                        'samesite' => 'Lax'
+                    ]);
                 }
 
-                header("Location: dashboard.php");
+                $redirectUrl = ($roleId === 2) ? 'staff_dashboard.php' : 'dashboard.php';
+                header("Location: " . $redirectUrl);
                 exit();
             }
         } else {
@@ -84,9 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="container my-auto py-4">
         <div class="squircle-card p-4 p-md-5 shadow-lg mx-auto" style="max-width: 440px;">
             <div class="text-center mb-4">
-                <div class="d-inline-flex align-items-center justify-content-center rounded-4 text-white mb-3 shadow-sm" style="width: 56px; height: 56px; background: linear-gradient(135deg, var(--navy-deep), var(--blue-med));">
-                    <i class="bi bi-layers-fill fs-3"></i>
-                </div>
+                <img src="https://scontent.fmnl15-1.fna.fbcdn.net/v/t1.15752-9/918140027_1020725383633673_8028145773292022580_n.jpg?stp=dst-jpg_s480x480_tt6&_nc_cat=100&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=0024fc&_nc_eui2=AeGKh-NDd49Phi3VRuFVWmSGiqrpj16KYd2KqumPXoph3Xwb4jxDc13LjkyUhv0uMy6CSJXpHotS2GeQcQ9nUAiM&_nc_ohc=zAWSWq7dnJcQ7kNvwGyu_Pl&_nc_oc=AdrJM7KbrnIpGDYR2azmkx8W8aPZ9snlLr8rwb04YFLMWoVTJKpNAY4nc3zGiP6wYC8&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent.fmnl15-1.fna&_nc_ss=7a22e&oh=03_Q7cD6wGHA9AYHePdzkmDYI04j_o8OQro-JIB3-8NXgVY-2OdyQ&oe=6B28CDD0" alt="UtiliSense Logo" class="rounded-4 mb-3 shadow-sm" style="width: 64px; height: 64px; object-fit: cover;">
                 <h3 class="fw-bold mb-1" style="color: var(--navy-deep);">Welcome Back</h3>
                 <p class="text-muted small">Enter your credentials to access your dashboard</p>
             </div>
@@ -98,15 +124,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
             <form method="POST" action="login.php">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                 <div class="mb-3">
                     <label class="form-label fw-semibold small" style="color: var(--navy-deep);">Email Address</label>
-                    <input type="email" name="email" class="form-control custom-input" placeholder="Enter your email" value="<?php echo htmlspecialchars($_COOKIE['remember_email'] ?? ''); ?>" required>
+                    <input type="email" name="email" class="form-control custom-input" placeholder="Enter your email" autocomplete="email" value="<?php echo htmlspecialchars($emailValue); ?>" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold small" style="color: var(--navy-deep);">Password</label>
                     <div class="position-relative">
-                        <input type="password" name="password" id="loginPass" class="form-control custom-input pe-5" placeholder="••••••••" required>
-                        <button type="button" class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-muted text-decoration-none pe-3" onclick="togglePass('loginPass', 'eyeIcon')">
+                        <input type="password" name="password" id="loginPass" class="form-control custom-input pe-5" placeholder="••••••••" autocomplete="current-password" required>
+                        <button type="button" class="btn btn-link position-absolute top-50 end-0 translate-middle-y text-muted text-decoration-none pe-3" aria-label="Toggle password visibility" onclick="togglePass('loginPass', 'eyeIcon')">
                             <i class="bi bi-eye" id="eyeIcon"></i>
                         </button>
                     </div>
@@ -128,6 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <div class="text-center text-muted small">UtiliSense Household Manager</div>
 
+    <script src="assets/js/app.js"></script>
     <script>
         function togglePass(id, iconId) {
             const input = document.getElementById(id);
