@@ -91,14 +91,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' AND isset($_POST['save_my_utilities'])
         'Converge ICT FiberX'           => 1500.00,
         'PLDT Home Fiber'               => 1699.00,
         'Globe At Home'                 => 1499.00,
-        'Petron Gasul (11kg)'           => 985.00,
-        'Solane LPG (11kg)'             => 990.00,
     ];
 
     $pdo->prepare("DELETE FROM user_utilities WHERE user_id = ?")->execute([$userId]);
     $insertSub = $pdo->prepare("INSERT INTO user_utilities (user_id, utility_type, provider_name, rate_per_unit) VALUES (?, ?, ?, ?)");
 
     foreach ($selectedTypes as $uType) {
+        if (!in_array($uType, ['Electricity', 'Water', 'Internet'])) continue;
         $provName = $providers[$uType] ?? 'Standard Provider';
         $rateVal  = $rates[$provName] ?? 0.00;
         $insertSub->execute([$userId, $uType, $provName, $rateVal]);
@@ -108,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' AND isset($_POST['save_my_utilities'])
     $flashMsg = "Your utility preferences have been saved!";
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' AND isset($_POST['encode_bill'])) {
+if ($role !== 'Consumer' AND $_SERVER['REQUEST_METHOD'] === 'POST' AND isset($_POST['encode_bill'])) {
     $targetUserId = isset($_POST['target_user_id']) ? (int)$_POST['target_user_id'] : $userId;
     $uType        = $_POST['utility_type'];
     $provName     = $_POST['provider_name'];
@@ -133,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' AND isset($_POST['encode_bill'])) {
     $stmtBill->execute([$targetUserId, $uType, $provName, $prevRead, $presRead, $consumption, $amount, $dueDate, $userId]);
 
     log_activity($pdo, $userId, 'ENCODE_BILL', "Encoded $uType bill (₱$amount) for User ID #$targetUserId");
-    $flashMsg = "Bill encoded and saved to database! Complete payment via Pay Bill to settle it.";
+    $flashMsg = "Bill encoded and published to the consumer's dashboard!";
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' AND isset($_POST['submit_bill_payment'])) {
@@ -170,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' AND isset($_POST['submit_bill_payment'
     }
 }
 
-$subStmt = $pdo->prepare("SELECT * FROM user_utilities WHERE user_id = ? ORDER BY id ASC");
+$subStmt = $pdo->prepare("SELECT * FROM user_utilities WHERE user_id = ? AND utility_type IN ('Electricity', 'Water', 'Internet') ORDER BY id ASC");
 $subStmt->execute([$userId]);
 $mySubscriptions = $subStmt->fetchAll();
 $subscribedMap = [];
@@ -202,7 +201,7 @@ $myReceiptsStmt->execute([$userId]);
 $myReceipts = $myReceiptsStmt->fetchAll();
 
 $latestBillByType = [];
-$categoryTotals   = ['Electricity' => 0, 'Water' => 0, 'Internet' => 0, 'Cooking Gas (LPG)' => 0];
+$categoryTotals   = ['Electricity' => 0, 'Water' => 0, 'Internet' => 0];
 $totalSpent       = 0;
 $pendingCount     = 0;
 $paidCount        = 0;
@@ -257,56 +256,63 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($role); ?> Dashboard — UtiliSense</title>
+    <link rel="icon" type="image/jpeg" href="assets/images/logo.jpg">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=6">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
     <div class="container-fluid py-3 px-3 px-md-4 w-100">
         
-        <header class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-            <a href="dashboard.php" class="d-flex align-items-center gap-3 text-decoration-none">
-                <span class="d-inline-flex align-items-center justify-content-center rounded-4 text-white shadow" style="width: 46px; height: 46px; background: linear-gradient(135deg, var(--blue-med), var(--navy-deep));">
-                    <i class="bi bi-layers-fill fs-5"></i>
-                </span>
+        <header class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 portal-header">
+            <a href="dashboard.php" class="d-flex align-items-center gap-3 text-decoration-none flex-shrink-0">
+                <?php if (file_exists(__DIR__ . '/assets/images/logo.jpg')): ?>
+                    <img src="assets/images/logo.jpg?v=3" alt="UtiliSense Logo" class="shadow-sm flex-shrink-0" style="width: 44px; height: 44px; object-fit: cover; border-radius: 12px;">
+                <?php else: ?>
+                    <span class="d-inline-flex align-items-center justify-content-center rounded-4 text-white shadow flex-shrink-0" style="width: 46px; height: 46px; background: linear-gradient(135deg, var(--blue-med), var(--navy-deep));">
+                        <i class="bi bi-layers-fill fs-5"></i>
+                    </span>
+                <?php endif; ?>
                 <div>
-                    <h4 class="fw-bold mb-0" style="color: var(--navy-deep); letter-spacing: -0.5px;">UtiliSense</h4>
-                    <span class="text-muted small" style="font-size: 0.75rem;">Pampanga Smart Utility Portal</span>
+                    <h4 class="fw-bold mb-0 text-nowrap" style="color: var(--navy-deep); letter-spacing: -0.5px;">UtiliSense</h4>
+                    <span class="text-muted small d-block text-nowrap" style="font-size: 0.75rem;">Pampanga Smart Utility Portal</span>
                 </div>
             </a>
 
-            <ul class="morph-nav-dock mb-0" id="dashTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="morph-nav-btn active" data-bs-toggle="pill" data-bs-target="#tab-home" type="button" role="tab">
-                        <i class="bi bi-grid-1x2-fill"></i>
-                        <span class="nav-label"><?php echo ($role === 'Administrator') ? 'Admin Center' : 'Overview'; ?></span>
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="morph-nav-btn" data-bs-toggle="pill" data-bs-target="#tab-transactions" type="button" role="tab">
-                        <i class="bi bi-receipt-cutoff"></i>
-                        <span class="nav-label">Bills & Receipts</span>
-                    </button>
-                </li>
-                <?php if ($role === 'Administrator'): ?>
-                <li class="nav-item" role="presentation">
-                    <button class="morph-nav-btn" data-bs-toggle="pill" data-bs-target="#tab-audit" type="button" role="tab">
-                        <i class="bi bi-shield-check"></i>
-                        <span class="nav-label">Audit Logs</span>
-                    </button>
-                </li>
-                <?php endif; ?>
-                <li class="nav-item" role="presentation">
-                    <button class="morph-nav-btn" data-bs-toggle="pill" data-bs-target="#tab-profile" type="button" role="tab">
-                        <i class="bi bi-person-fill"></i>
-                        <span class="nav-label">Profile</span>
-                    </button>
-                </li>
-            </ul>
+            <div class="portal-nav-wrap">
+                <ul class="morph-nav-dock mb-0" id="dashTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="morph-nav-btn active" data-bs-toggle="pill" data-bs-target="#tab-home" type="button" role="tab">
+                            <i class="bi bi-grid-1x2-fill"></i>
+                            <span class="nav-label"><?php echo ($role === 'Administrator') ? 'Admin Center' : 'Overview'; ?></span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="morph-nav-btn" data-bs-toggle="pill" data-bs-target="#tab-transactions" type="button" role="tab">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span class="nav-label">Bills & Receipts</span>
+                        </button>
+                    </li>
+                    <?php if ($role === 'Administrator'): ?>
+                    <li class="nav-item" role="presentation">
+                        <button class="morph-nav-btn" data-bs-toggle="pill" data-bs-target="#tab-audit" type="button" role="tab">
+                            <i class="bi bi-shield-check"></i>
+                            <span class="nav-label">Audit Logs</span>
+                        </button>
+                    </li>
+                    <?php endif; ?>
+                    <li class="nav-item" role="presentation">
+                        <button class="morph-nav-btn" data-bs-toggle="pill" data-bs-target="#tab-profile" type="button" role="tab">
+                            <i class="bi bi-person-fill"></i>
+                            <span class="nav-label">Profile</span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
 
-            <div class="d-flex align-items-center gap-2 bg-white bg-opacity-75 px-3 py-2 rounded-pill shadow-sm border">
+            <div class="d-flex align-items-center gap-2 bg-white px-3 py-2 rounded-pill shadow-sm border">
                 <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold" style="width: 34px; height: 34px; background: var(--navy-deep); font-size: 0.85rem;">
                     <?php echo strtoupper(substr($currentUser['name'], 0, 1)); ?>
                 </div>
@@ -340,24 +346,22 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                 <i class="bi <?php echo $role === 'Administrator' ? 'bi-shield-lock-fill' : 'bi-stars'; ?> me-1"></i>
                                 <?php echo strtoupper(htmlspecialchars($role)); ?> COMMAND CENTER
                             </span>
-                            <h2 class="fw-bold mb-1">Hello, <?php echo htmlspecialchars($firstName); ?>!</h2>
-                            <p class="text-white-50 small mb-3">
-                                <?php if ($role === 'Administrator'): ?>
+                            <h2 class="fw-bold mb-3">Hello, <?php echo htmlspecialchars($firstName); ?>!</h2>
+                            <?php if ($role === 'Administrator'): ?>
+                                <p class="text-white-50 small mb-3">
                                     Manage all registered Pampanga user accounts, assign Staff/Admin permissions, encode bills, and audit security logs.
-                                <?php else: ?>
-                                    Track your subscribed Pampanga utility bills, pay online via GCash, Maya, MariBank, or card, and get automatic PAID receipts.
-                                <?php endif; ?>
-                            </p>
+                                </p>
+                            <?php endif; ?>
                             <div class="d-flex flex-wrap gap-2">
                                 <?php if ($role === 'Consumer'): ?>
                                     <button class="btn btn-pill-aqua btn-sm px-3 py-2" data-bs-toggle="modal" data-bs-target="#chooseUtilitiesModal">
                                         <i class="bi bi-sliders me-1"></i> Choose My Utilities
                                     </button>
+                                <?php else: ?>
+                                    <button class="btn btn-light btn-sm rounded-pill px-3 py-2 fw-bold" style="color: var(--navy-deep);" data-bs-toggle="modal" data-bs-target="#encodeBillModal">
+                                        <i class="bi bi-plus-circle-fill me-1 text-primary"></i> Encode Consumer Bill
+                                    </button>
                                 <?php endif; ?>
-                                <button class="btn btn-light btn-sm rounded-pill px-3 py-2 fw-bold" style="color: var(--navy-deep);" data-bs-toggle="modal" data-bs-target="#encodeBillModal">
-                                    <i class="bi bi-plus-circle-fill me-1 text-primary"></i>
-                                    <?php echo ($role === 'Consumer') ? 'Calculate / Add Bill' : 'Encode Consumer Bill'; ?>
-                                </button>
                             </div>
                         </div>
 
@@ -368,7 +372,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                         <div class="text-white-50 small mb-1" style="font-size: 0.7rem;">
                                             <?php echo ($role === 'Consumer') ? 'MY TOTAL RECORDED' : 'SYSTEM BILLING VOLUME'; ?>
                                         </div>
-                                        <h4 class="fw-bold mb-0">₱<?php echo number_format($totalSpent, 2); ?></h4>
+                                        <h4 class="fw-bold mb-0 text-break" style="font-size: clamp(1rem, 1.45vw, 1.35rem);">₱<?php echo number_format($totalSpent, 2); ?></h4>
                                         <small class="text-info" style="font-size: 0.7rem;"><i class="bi bi-database-check"></i> Live MySQL Total</small>
                                     </div>
                                 </div>
@@ -498,14 +502,14 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
 
                     <div class="row g-4 mb-4">
                         <?php if (empty($mySubscriptions)): ?>
-                            <div class="col-lg-9">
+                            <div class="col-12">
                                 <div class="squircle-card p-5 text-center bg-white h-100 d-flex flex-column justify-content-center align-items-center">
                                     <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px; background: rgba(28, 104, 197, 0.1); color: var(--blue-med);">
                                         <i class="bi bi-sliders fs-3"></i>
                                     </div>
                                     <h5 class="fw-bold mb-1" style="color: var(--navy-deep);">Your dashboard starts clean at ₱0.00</h5>
                                     <p class="text-muted small mb-3" style="max-width: 460px;">
-                                        Select which bills you hold (Electricity, Water, Internet, or Cooking Gas) and your Pampanga provider to create your live cards.
+                                        Select which bills you hold (Electricity, Water, or Internet) and your Pampanga provider to create your live cards.
                                     </p>
                                     <button class="btn btn-pill-navy btn-sm px-4" data-bs-toggle="modal" data-bs-target="#chooseUtilitiesModal">
                                         Choose My Utilities Now
@@ -516,14 +520,14 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                             <?php
                             $cardStyles = ['card-blue-primary', 'card-aqua-secondary', 'card-indigo-tertiary'];
                             foreach ($mySubscriptions as $idx => $sub):
-                                $uType     = $sub['utility_type'];
-                                $provider  = $sub['provider_name'];
-                                $bill      = $latestBillByType[$uType] ?? null;
-                                $cardClass = $cardStyles[$idx % count($cardStyles)];
-                                $iconClass = ($uType === 'Electricity') ? 'bi-lightning-charge-fill' : (($uType === 'Water') ? 'bi-droplet-fill' : (($uType === 'Internet') ? 'bi-wifi' : 'bi-fire'));
+                                $uType      = $sub['utility_type'];
+                                $provider   = $sub['provider_name'];
+                                $bill       = $latestBillByType[$uType] ?? null;
+                                $cardClass  = $cardStyles[$idx % count($cardStyles)];
+                                $iconClass  = ($uType === 'Electricity') ? 'bi-lightning-charge-fill' : (($uType === 'Water') ? 'bi-droplet-fill' : 'bi-wifi');
                                 $displayAmt = $bill ? (float)$bill['amount'] : 0;
                             ?>
-                            <div class="col-md-6 col-lg-3">
+                            <div class="col-12 col-md-4">
                                 <div class="<?php echo $cardClass; ?> p-4 shadow-sm h-100 d-flex flex-column justify-content-between">
                                     <div class="d-flex justify-content-between align-items-start mb-3">
                                         <div>
@@ -563,16 +567,6 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                             </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
-
-                        <div class="col-md-6 col-lg-3">
-                            <a href="#" data-bs-toggle="modal" data-bs-target="#encodeBillModal" class="squircle-card p-4 shadow-sm h-100 d-flex flex-column align-items-center justify-content-center text-decoration-none text-dark bg-white" style="border: 2px dashed rgba(28, 104, 197, 0.45); min-height: 210px;">
-                                <div class="rounded-circle d-flex align-items-center justify-content-center mb-2 text-white shadow" style="width: 54px; height: 54px; background: linear-gradient(135deg, var(--aqua-bright), var(--blue-med));">
-                                    <i class="bi bi-plus-lg fs-3"></i>
-                                </div>
-                                <h6 class="fw-bold mb-1" style="color: var(--navy-deep);">Calculate / Add Bill</h6>
-                                <small class="text-muted text-center" style="font-size: 0.75rem;">Auto-solves Meralco & PELCO kWh</small>
-                            </a>
-                        </div>
                     </div>
                 <?php endif; ?>
 
@@ -608,7 +602,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                                 <div class="text-white-50 small">
                                                     Due: <?php echo date('M j, Y', strtotime($b['due_date'])); ?>
                                                     <?php if ($b['consumption'] > 0): ?>
-                                                        • <?php echo number_format($b['consumption'], 0); ?> <?php echo $b['utility_type'] === 'Electricity' ? 'kWh' : 'm³'; ?>
+- <?php echo number_format($b['consumption'], 0); ?> <?php echo $b['utility_type'] === 'Electricity' ? 'kWh' : 'm³'; ?>
                                                     <?php endif; ?>
                                                 </div>
                                             </div>
@@ -923,7 +917,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                 <option value="Mabalacat City Water District">Mabalacat City Water District (₱36.80 / m³)</option>
                             </select>
                         </div>
-                        <div class="p-3 bg-light rounded-4 mb-3 border">
+                        <div class="p-3 bg-light rounded-4 mb-4 border">
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="checkbox" name="utilities[]" value="Internet" id="uNet" <?php echo isset($subscribedMap['Internet']) ? 'checked' : ''; ?>>
                                 <label class="form-check-label fw-bold" for="uNet">Internet / WiFi Bill</label>
@@ -934,16 +928,6 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                 <option value="Globe At Home">Globe At Home (₱1,499 / mo)</option>
                             </select>
                         </div>
-                        <div class="p-3 bg-light rounded-4 mb-4 border">
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" name="utilities[]" value="Cooking Gas (LPG)" id="uGas" <?php echo isset($subscribedMap['Cooking Gas (LPG)']) ? 'checked' : ''; ?>>
-                                <label class="form-check-label fw-bold" for="uGas">Cooking Gas (LPG)</label>
-                            </div>
-                            <select class="form-select custom-input py-2" name="provider[Cooking Gas (LPG)]">
-                                <option value="Petron Gasul (11kg)">Petron Gasul 11kg (₱985)</option>
-                                <option value="Solane LPG (11kg)">Solane LPG 11kg (₱990)</option>
-                            </select>
-                        </div>
                         <button type="submit" class="btn btn-pill-navy w-100">Save Selected Utilities</button>
                     </form>
                 </div>
@@ -951,37 +935,33 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
         </div>
     </div>
 
+    <?php if ($role !== 'Consumer'): ?>
     <div class="modal fade" id="encodeBillModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content squircle-card border-0 shadow-lg">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold" style="color: var(--navy-deep);">
-                        <?php echo ($role !== 'Consumer') ? 'Encode Consumer Utility Bill' : 'Calculate & Add Utility Bill'; ?>
-                    </h5>
+                    <h5 class="modal-title fw-bold" style="color: var(--navy-deep);">Encode Consumer Utility Bill</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <form method="POST" action="dashboard.php">
                         <input type="hidden" name="encode_bill" value="1">
-                        <?php if ($role !== 'Consumer'): ?>
-                            <div class="mb-3">
-                                <label class="form-label small fw-semibold">Select Consumer Account</label>
-                                <select class="form-select custom-input py-2" name="target_user_id" required>
-                                    <?php foreach ($consumersList as $c): ?>
-                                        <option value="<?php echo (int)$c['user_id']; ?>">
-                                            <?php echo htmlspecialchars($c['full_name'] . ' (' . $c['email'] . ')'); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                        <?php endif; ?>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Select Consumer Account</label>
+                            <select class="form-select custom-input py-2" name="target_user_id" required>
+                                <?php foreach ($consumersList as $c): ?>
+                                    <option value="<?php echo (int)$c['user_id']; ?>">
+                                        <?php echo htmlspecialchars($c['full_name'] . ' (' . $c['email'] . ')'); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                         <div class="mb-3">
                             <label class="form-label small fw-semibold">Utility Type</label>
                             <select class="form-select custom-input py-2" name="utility_type" id="calcUtilityType" onchange="syncCalcProviders()">
                                 <option value="Electricity">Electricity</option>
                                 <option value="Water">Water</option>
                                 <option value="Internet">Internet</option>
-                                <option value="Cooking Gas (LPG)">Cooking Gas (LPG)</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -1018,6 +998,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -1083,17 +1064,15 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                 { name: 'Converge ICT FiberX', rate: 1500.00, unit: 'Plan' },
                 { name: 'PLDT Home Fiber', rate: 1699.00, unit: 'Plan' },
                 { name: 'Globe At Home', rate: 1499.00, unit: 'Plan' }
-            ],
-            'Cooking Gas (LPG)': [
-                { name: 'Petron Gasul (11kg)', rate: 985.00, unit: 'Tank' },
-                { name: 'Solane LPG (11kg)', rate: 990.00, unit: 'Tank' }
             ]
         };
 
         function syncCalcProviders() {
-            const type = document.getElementById('calcUtilityType').value;
+            const typeEl = document.getElementById('calcUtilityType');
             const select = document.getElementById('calcProvider');
             const meterBox = document.getElementById('meterReadingBox');
+            if (!typeEl) return;
+            const type = typeEl.value;
             select.innerHTML = '';
             (PROVIDER_RATES[type] ? PROVIDER_RATES[type] : []).forEach(p => {
                 const opt = document.createElement('option');
@@ -1108,8 +1087,10 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
         }
 
         function computeReadingMath() {
-            const type = document.getElementById('calcUtilityType').value;
+            const typeEl = document.getElementById('calcUtilityType');
             const select = document.getElementById('calcProvider');
+            if (!typeEl) return;
+            const type = typeEl.value;
             const selectedOpt = select.options[select.selectedIndex];
             if (!selectedOpt) return;
             const rate = parseFloat(selectedOpt.getAttribute('data-rate'));
@@ -1130,7 +1111,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
         syncCalcProviders();
 
         const dbTotals = <?php echo json_encode(array_values($categoryTotals)); ?>;
-        const dbLabels = ['Electricity', 'Water', 'Internet', 'LPG'];
+        const dbLabels = ['Electricity', 'Water', 'Internet'];
         const hasSpend = dbTotals.some(v => v > 0);
 
         new Chart(document.getElementById('doughnutChart').getContext('2d'), {
@@ -1139,7 +1120,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                 labels: hasSpend ? dbLabels : ['No Bills Yet'],
                 datasets: [{
                     data: hasSpend ? dbTotals : [1],
-                    backgroundColor: hasSpend ? ['#0B1E43', '#1C68C5', '#2BA9E0', '#6366F1'] : ['#E2E8F0'],
+                    backgroundColor: hasSpend ? ['#0B1E43', '#1C68C5', '#2BA9E0'] : ['#E2E8F0'],
                     borderWidth: 0,
                     cutout: '72%'
                 }]
@@ -1182,5 +1163,6 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
             });
         }
     </script>
+    <script src="assets/js/app.js"></script>
 </body>
 </html>

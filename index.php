@@ -1,7 +1,8 @@
 <?php
 session_start();
 if (isset($_SESSION['user'])) {
-    header("Location: dashboard.php");
+    $target = ((int)($_SESSION['user']['role_id'] ?? 3) === 2) ? 'staff_dashboard.php' : 'dashboard.php';
+    header("Location: " . $target);
     exit();
 }
 ?>
@@ -11,56 +12,37 @@ if (isset($_SESSION['user'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UtiliSense — Welcome</title>
+    <link rel="icon" type="image/jpeg" href="assets/images/logo.jpg?v=3">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=6">
 </head>
 <body class="d-flex flex-column justify-content-between">
 
-    <nav class="navbar navbar-expand-lg py-3 sticky-top">
-        <div class="container bg-white bg-opacity-75 px-4 py-2 shadow-sm" style="border-radius: 50px; backdrop-filter: blur(12px);">
-            <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="index.php" style="color: var(--navy-deep);">
-                <span class="d-inline-flex align-items-center justify-content-center rounded-3 text-white" style="width: 36px; height: 36px; background: var(--blue-med);">
-                    <i class="bi bi-layers-fill"></i>
-                </span>
-                UtiliSense
+    <nav class="navbar py-3 sticky-top px-3 px-lg-5">
+        <div class="container-fluid bg-white px-4 py-2 shadow-sm" style="border-radius: 50px;">
+            <a class="navbar-brand fw-bold d-flex align-items-center gap-2 mb-0" href="index.php" style="color: var(--navy-deep);">
+                <img src="assets/images/logo.jpg?v=3" alt="UtiliSense Logo" class="shadow-sm flex-shrink-0" style="width: 38px; height: 38px; object-fit: cover; border-radius: 10px;">
+                <span>UtiliSense</span>
             </a>
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse justify-content-end" id="navMenu">
-                <ul class="navbar-nav align-items-center gap-3 mt-3 mt-lg-0">
-              
-                    <li class="nav-item"><a class="nav-link fw-medium" href="login.php">Sign In</a></li>
-                    <li class="nav-item">
-                        <button type="button" class="btn btn-pill-navy py-2 px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#getStartedModal">
-                            Get Started
-                        </button>
-                    </li>
-                </ul>
-            </div>
         </div>
     </nav>
 
- 
-    <header class="container py-5 my-auto">
+    <header class="container-fluid px-4 px-lg-5 py-4 py-lg-5 my-auto">
         <div class="row align-items-center g-5">
             <div class="col-lg-6 reveal active">
-                <h1 class="display-4 fw-bold mb-3" style="color: var(--navy-deep); line-height: 1.15;">
+                <span class="badge rounded-pill px-3 py-2 mb-3 fw-semibold" style="background-color: rgba(28, 104, 197, 0.12); color: var(--blue-med);">
+                    <i class="bi bi-shield-check me-1"></i> Smart Utility & Bill Tracker
+                </span>
+                <h1 class="display-4 fw-bold mb-4" style="color: var(--navy-deep); line-height: 1.15;">
                     Hello, Welcome to UtiliSense.
                 </h1>
-                <p class="lead text-muted mb-4">
-                    Track your electricity, water, internet, and LPG bills in one secure place—built for households and utility teams across Pampanga.
-                </p>
-                <div class="d-flex flex-wrap gap-3">
+                <div>
                     <button type="button" class="btn btn-pill-navy shadow px-4 py-3" data-bs-toggle="modal" data-bs-target="#getStartedModal">
                         Get Started <i class="bi bi-arrow-right ms-2"></i>
                     </button>
-                    <a href="login.php" class="btn btn-pill-aqua shadow-sm px-4 py-3">Member Sign In</a>
                 </div>
             </div>
-
-          
             <div class="col-lg-6 reveal active">
                 <div class="floating-element p-4 squircle-card shadow-lg bg-white">
                     <div class="row g-3 mb-3">
@@ -97,7 +79,6 @@ if (isset($_SESSION['user'])) {
         </div>
     </header>
 
- 
     <div class="modal fade" id="getStartedModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content squircle-card p-3 border-0">
@@ -137,5 +118,6 @@ if (isset($_SESSION['user'])) {
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/app.js"></script>
 </body>
 </html>
