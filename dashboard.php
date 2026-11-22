@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if (isset($_POST['save_my_utilities'])) {
+    if ($role === 'Consumer' AND isset($_POST['save_my_utilities'])) {
         $selectedTypes = $_POST['utilities'] ?? [];
         $providers     = $_POST['provider'] ?? [];
         $rates         = [
@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    if (isset($_POST['submit_bill_payment'])) {
+    if ($role === 'Consumer' AND isset($_POST['submit_bill_payment'])) {
         $billId     = (int)$_POST['pay_bill_id'];
         $channel    = trim($_POST['payment_channel'] ?? 'GCash');
         $identifier = trim($_POST['account_identifier'] ?? '');
@@ -153,13 +153,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ? ('UTS-BRANCH-' . strtoupper(substr(md5(uniqid((string)$billId, true)), 0, 8)))
             : ('UTS-PAY-' . strtoupper(substr(md5(uniqid((string)$billId, true)), 0, 8)));
 
-        if ($role === 'Consumer') {
-            $bCheck = $pdo->prepare("SELECT * FROM utility_bills WHERE bill_id = ? AND user_id = ? AND status != 'PAID' LIMIT 1");
-            $bCheck->execute([$billId, $userId]);
-        } else {
-            $bCheck = $pdo->prepare("SELECT * FROM utility_bills WHERE bill_id = ? AND status != 'PAID' LIMIT 1");
-            $bCheck->execute([$billId]);
-        }
+        $bCheck = $pdo->prepare("SELECT * FROM utility_bills WHERE bill_id = ? AND user_id = ? AND status != 'PAID' LIMIT 1");
+        $bCheck->execute([$billId, $userId]);
         $foundBill = $bCheck->fetch();
 
         if ($foundBill) {
@@ -170,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 INSERT INTO bill_payments (bill_id, user_id, payment_channel, account_identifier, reference_no, amount_paid, payment_mode)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
-            $payStmt->execute([$billId, (int)$foundBill['user_id'], $channel, $identifier, $refNo, $amtPaid, $mode]);
+            $payStmt->execute([$billId, $userId, $channel, $identifier, $refNo, $amtPaid, $mode]);
 
             if ($isWalkIn) {
                 log_activity($pdo, $userId, 'WALKIN_SLIP', "Generated walk-in branch payment slip ($refNo) for Bill #$billId");
@@ -613,7 +608,9 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                     <h5 class="fw-bold mb-0">
                                         <?php echo ($role === 'Consumer') ? 'Recent Transactions & Alerts' : 'All Consumer Billing Feed'; ?>
                                     </h5>
-                                    <small class="text-white-50">Pay online to automatically mark bills as PAID</small>
+                                    <small class="text-white-50">
+                                        <?php echo ($role === 'Consumer') ? 'Pay online to automatically mark bills as PAID' : 'Live monitoring of encoded consumer statements and payment statuses'; ?>
+                                    </small>
                                 </div>
                                 <span class="badge rounded-pill px-3 py-2" style="background: rgba(56, 189, 248, 0.2); color: #38BDF8;">
                                     <?php echo count($allBills); ?> Records
@@ -644,17 +641,21 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                         </div>
                                         <div class="text-end">
                                             <div class="fw-bold fs-5">₱<?php echo number_format($b['amount'], 2); ?></div>
-                                            <?php if ($b['status'] !== 'PAID'): ?>
+                                            <?php if ($role === 'Consumer' AND $b['status'] !== 'PAID'): ?>
                                                 <button type="button"
                                                         class="btn btn-sm btn-info py-1 px-3 rounded-pill text-dark fw-bold shadow-sm"
                                                         style="font-size: 0.72rem;"
                                                         onclick="openPayModal(<?php echo (int)$b['bill_id']; ?>, '<?php echo htmlspecialchars($b['utility_type'] . ' — ' . $b['provider_name'], ENT_QUOTES); ?>', <?php echo (float)$b['amount']; ?>)">
                                                     <i class="bi bi-credit-card-2-front-fill me-1"></i> Pay Bill
                                                 </button>
-                                            <?php else: ?>
+                                            <?php elseif ($b['status'] === 'PAID'): ?>
                                                 <span class="badge bg-success-subtle text-success rounded-pill px-2 py-1" style="font-size: 0.68rem;">
                                                     <i class="bi bi-check-circle-fill me-1"></i>PAID
                                                 </span>
+                                            <?php elseif ($b['status'] === 'OVERDUE'): ?>
+                                                <span class="badge bg-danger rounded-pill px-2 py-1" style="font-size: 0.68rem;">OVERDUE</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-warning text-dark rounded-pill px-2 py-1" style="font-size: 0.68rem;">PENDING</span>
                                             <?php endif; ?>
                                         </div>
                                     </div>
@@ -707,12 +708,12 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                     <th>Amount</th>
                                     <th>Due Date</th>
                                     <th>Status</th>
-                                    <th class="text-end">Payment</th>
+                                    <?php if ($role === 'Consumer'): ?><th class="text-end">Payment</th><?php endif; ?>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if (empty($allBills)): ?>
-                                    <tr><td colspan="8" class="text-center text-muted py-4">No bills encoded yet.</td></tr>
+                                    <tr><td colspan="7" class="text-center text-muted py-4">No bills encoded yet.</td></tr>
                                 <?php else: ?>
                                     <?php foreach ($allBills as $bill): ?>
                                     <tr>
@@ -725,10 +726,11 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                         <td class="fw-bold">₱<?php echo number_format($bill['amount'], 2); ?></td>
                                         <td><?php echo date('M j, Y', strtotime($bill['due_date'])); ?></td>
                                         <td>
-                                            <span class="badge rounded-pill bg-<?php echo $bill['status'] === 'PAID' ? 'success' : 'warning text-dark'; ?>">
+                                            <span class="badge rounded-pill bg-<?php echo $bill['status'] === 'PAID' ? 'success' : ($bill['status'] === 'OVERDUE' ? 'danger' : 'warning text-dark'); ?>">
                                                 <?php echo htmlspecialchars($bill['status']); ?>
                                             </span>
                                         </td>
+                                        <?php if ($role === 'Consumer'): ?>
                                         <td class="text-end">
                                             <?php if ($bill['status'] !== 'PAID'): ?>
                                                 <button type="button"
@@ -740,6 +742,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                                 <span class="text-success small fw-bold"><i class="bi bi-patch-check-fill me-1"></i>Paid</span>
                                             <?php endif; ?>
                                         </td>
+                                        <?php endif; ?>
                                     </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
@@ -834,6 +837,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
         </div>
     </div>
 
+    <?php if ($role === 'Consumer'): ?>
     <div class="modal fade" id="payBillModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content squircle-card border-0 shadow-lg">
@@ -971,6 +975,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
     <?php if ($role !== 'Consumer'): ?>
     <div class="modal fade" id="encodeBillModal" tabindex="-1" aria-hidden="true">
@@ -1041,16 +1046,20 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function openPayModal(billId, billerText, amount) {
+            const modalEl = document.getElementById('payBillModal');
+            if (!modalEl) return;
             document.getElementById('payBillIdInput').value = billId;
             document.getElementById('payBillerLabel').textContent = billerText;
             document.getElementById('payAmountLabel').textContent = '₱' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             document.getElementById('paymentChannelSelect').value = 'GCash';
             handlePaymentChannelChange();
-            new bootstrap.Modal(document.getElementById('payBillModal')).show();
+            new bootstrap.Modal(modalEl).show();
         }
 
         function handlePaymentChannelChange() {
-            const channel = document.getElementById('paymentChannelSelect').value;
+            const selectEl = document.getElementById('paymentChannelSelect');
+            if (!selectEl) return;
+            const channel = selectEl.value;
             const onlineBox = document.getElementById('onlineFieldsBox');
             const walkInBox = document.getElementById('walkInNoticeBox');
             const accLabel = document.getElementById('accountFieldLabel');
