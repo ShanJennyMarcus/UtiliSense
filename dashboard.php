@@ -1,7 +1,4 @@
 <?php
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
 session_start();
 require_once 'config/database.php';
 
@@ -10,24 +7,11 @@ if (!isset($_SESSION['user'])) {
     exit();
 }
 
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 $userId = (int)$_SESSION['user']['id'];
-
-$pdo->exec("UPDATE users SET role_id = 1 WHERE LOWER(full_name) LIKE '%admin%' OR LOWER(email) LIKE 'admin%'");
-$pdo->exec("UPDATE users SET role_id = 2 WHERE LOWER(full_name) LIKE '%staff%' OR LOWER(email) LIKE 'staff%'");
-
-$pdo->exec("
-    CREATE TABLE IF NOT EXISTS bill_payments (
-        payment_id INT AUTO_INCREMENT PRIMARY KEY,
-        bill_id INT NOT NULL,
-        user_id INT NOT NULL,
-        payment_channel VARCHAR(80) NOT NULL,
-        account_identifier VARCHAR(100) NULL,
-        reference_no VARCHAR(80) NOT NULL,
-        amount_paid DECIMAL(10,2) NOT NULL,
-        payment_mode ENUM('ONLINE_INSTANT', 'WALK_IN_BRANCH') DEFAULT 'ONLINE_INSTANT',
-        paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB;
-");
 
 $uStmt = $pdo->prepare("SELECT * FROM users WHERE user_id = ? LIMIT 1");
 $uStmt->execute([$userId]);
@@ -51,121 +35,157 @@ $_SESSION['user']['name']    = $liveUser['full_name'];
 $_SESSION['user']['role_id'] = $roleId;
 $_SESSION['user']['role']    = $role;
 $currentUser                 = $_SESSION['user'];
-$flashMsg                    = "";
 
-if ($role === 'Administrator' AND $_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['change_role_user_id'])) {
-        $targetId = (int)$_POST['change_role_user_id'];
-        $newRole  = (int)$_POST['new_role_id'];
-        if ($targetId !== $userId AND in_array($newRole, [1, 2, 3])) {
-            $pdo->prepare("UPDATE users SET role_id = ? WHERE user_id = ?")->execute([$newRole, $targetId]);
-            log_activity($pdo, $userId, 'UPDATE_ROLE', "Changed User #$targetId to role_id $newRole");
-            $flashMsg = "User role updated successfully!";
+$flashMsg  = $_SESSION['flash_msg'] ?? "";
+$flashType = $_SESSION['flash_type'] ?? "success";
+unset($_SESSION['flash_msg'], $_SESSION['flash_type']);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrfToken = $_POST['csrf_token'] ?? '';
+    if (!hash_equals($_SESSION['csrf_token'], $csrfToken)) {
+        $_SESSION['flash_msg']  = "Invalid session token. Please refresh and try again.";
+        $_SESSION['flash_type'] = "danger";
+        header("Location: dashboard.php");
+        exit();
+    }
+
+    if ($role === 'Administrator') {
+        if (isset($_POST['change_role_user_id'])) {
+            $targetId = (int)$_POST['change_role_user_id'];
+            $newRole  = (int)$_POST['new_role_id'];
+            if ($targetId !== $userId AND in_array($newRole, [1, 2, 3], true)) {
+                $pdo->prepare("UPDATE users SET role_id = ? WHERE user_id = ?")->execute([$newRole, $targetId]);
+                log_activity($pdo, $userId, 'UPDATE_ROLE', "Changed User #$targetId to role_id $newRole");
+                $_SESSION['flash_msg'] = "User role updated successfully!";
+            }
+            header("Location: dashboard.php");
+            exit();
+        }
+        if (isset($_POST['toggle_user_id'])) {
+            $targetId  = (int)$_POST['toggle_user_id'];
+            $newStatus = ($_POST['current_status'] === 'active') ? 'inactive' : 'active';
+            if ($targetId !== $userId) {
+                $pdo->prepare("UPDATE users SET status = ? WHERE user_id = ?")->execute([$newStatus, $targetId]);
+                log_activity($pdo, $userId, 'UPDATE_STATUS', "Set User #$targetId status to $newStatus");
+                $_SESSION['flash_msg'] = "User status updated to $newStatus.";
+            }
+            header("Location: dashboard.php");
+            exit();
         }
     }
-    if (isset($_POST['toggle_user_id'])) {
-        $targetId  = (int)$_POST['toggle_user_id'];
-        $newStatus = ($_POST['current_status'] === 'active') ? 'inactive' : 'active';
-        if ($targetId !== $userId) {
-            $pdo->prepare("UPDATE users SET status = ? WHERE user_id = ?")->execute([$newStatus, $targetId]);
-            log_activity($pdo, $userId, 'UPDATE_STATUS', "Set User #$targetId status to $newStatus");
-            $flashMsg = "User status updated to $newStatus.";
+
+    if (isset($_POST['save_my_utilities'])) {
+        $selectedTypes = $_POST['utilities'] ?? [];
+        $providers     = $_POST['provider'] ?? [];
+        $rates         = [
+            'Meralco'                       => 11.85,
+            'PELCO I'                       => 11.10,
+            'PELCO II'                      => 10.90,
+            'PELCO III'                     => 11.05,
+            'SFELAPCO (San Fernando)'       => 12.05,
+            'Angeles Electric Corp (AEC)'   => 11.95,
+            'PrimeWater Pampanga'           => 38.50,
+            'Angeles City Water District'   => 36.00,
+            'San Fernando Water District'   => 37.20,
+            'Mabalacat City Water District' => 36.80,
+            'Converge ICT FiberX'           => 1500.00,
+            'PLDT Home Fiber'               => 1699.00,
+            'Globe At Home'                 => 1499.00,
+        ];
+
+        $pdo->prepare("DELETE FROM user_utilities WHERE user_id = ?")->execute([$userId]);
+        $insertSub = $pdo->prepare("INSERT INTO user_utilities (user_id, utility_type, provider_name, rate_per_unit) VALUES (?, ?, ?, ?)");
+
+        foreach ($selectedTypes as $uType) {
+            if (!in_array($uType, ['Electricity', 'Water', 'Internet'], true)) continue;
+            $provName = $providers[$uType] ?? 'Standard Provider';
+            $rateVal  = $rates[$provName] ?? 0.00;
+            $insertSub->execute([$userId, $uType, $provName, $rateVal]);
         }
-    }
-}
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' AND isset($_POST['save_my_utilities'])) {
-    $selectedTypes = $_POST['utilities'] ?? [];
-    $providers     = $_POST['provider'] ?? [];
-    $rates         = [
-        'Meralco'                       => 11.85,
-        'PELCO I'                       => 11.10,
-        'PELCO II'                      => 10.90,
-        'PELCO III'                     => 11.05,
-        'SFELAPCO (San Fernando)'       => 12.05,
-        'Angeles Electric Corp (AEC)'   => 11.95,
-        'PrimeWater Pampanga'           => 38.50,
-        'Angeles City Water District'   => 36.00,
-        'San Fernando Water District'   => 37.20,
-        'Mabalacat City Water District' => 36.80,
-        'Converge ICT FiberX'           => 1500.00,
-        'PLDT Home Fiber'               => 1699.00,
-        'Globe At Home'                 => 1499.00,
-    ];
-
-    $pdo->prepare("DELETE FROM user_utilities WHERE user_id = ?")->execute([$userId]);
-    $insertSub = $pdo->prepare("INSERT INTO user_utilities (user_id, utility_type, provider_name, rate_per_unit) VALUES (?, ?, ?, ?)");
-
-    foreach ($selectedTypes as $uType) {
-        if (!in_array($uType, ['Electricity', 'Water', 'Internet'])) continue;
-        $provName = $providers[$uType] ?? 'Standard Provider';
-        $rateVal  = $rates[$provName] ?? 0.00;
-        $insertSub->execute([$userId, $uType, $provName, $rateVal]);
+        log_activity($pdo, $userId, 'UPDATE_UTILITIES', "Updated subscribed utilities (" . implode(', ', $selectedTypes) . ")");
+        $_SESSION['flash_msg'] = "Your utility preferences have been saved!";
+        header("Location: dashboard.php");
+        exit();
     }
 
-    log_activity($pdo, $userId, 'UPDATE_UTILITIES', "Updated subscribed utilities (" . implode(', ', $selectedTypes) . ")");
-    $flashMsg = "Your utility preferences have been saved!";
-}
+    if ($role !== 'Consumer' AND isset($_POST['encode_bill'])) {
+        $targetUserId = isset($_POST['target_user_id']) ? (int)$_POST['target_user_id'] : $userId;
+        $uType        = $_POST['utility_type'] ?? 'Electricity';
+        $provName     = trim($_POST['provider_name'] ?? '');
+        $prevRead     = (float)($_POST['prev_reading'] ?? 0);
+        $presRead     = (float)($_POST['pres_reading'] ?? 0);
+        $consumption  = max(0, $presRead - $prevRead);
+        $amount       = max(0, (float)($_POST['amount'] ?? 0));
+        $dueDate      = !empty($_POST['due_date']) ? $_POST['due_date'] : date('Y-m-d', strtotime('+15 days'));
 
-if ($role !== 'Consumer' AND $_SERVER['REQUEST_METHOD'] === 'POST' AND isset($_POST['encode_bill'])) {
-    $targetUserId = isset($_POST['target_user_id']) ? (int)$_POST['target_user_id'] : $userId;
-    $uType        = $_POST['utility_type'];
-    $provName     = $_POST['provider_name'];
-    $prevRead     = (float)($_POST['prev_reading'] ?? 0);
-    $presRead     = (float)($_POST['pres_reading'] ?? 0);
-    $consumption  = max(0, $presRead - $prevRead);
-    $amount       = (float)($_POST['amount'] ?? 0);
-    $dueDate      = !empty($_POST['due_date']) ? $_POST['due_date'] : date('Y-m-d', strtotime('+15 days'));
+        if (in_array($uType, ['Electricity', 'Water', 'Internet'], true) AND $amount > 0) {
+            $checkSub = $pdo->prepare("SELECT id FROM user_utilities WHERE user_id = ? AND utility_type = ?");
+            $checkSub->execute([$targetUserId, $uType]);
+            if ($checkSub->rowCount() == 0) {
+                $pdo->prepare("INSERT INTO user_utilities (user_id, utility_type, provider_name, rate_per_unit) VALUES (?, ?, ?, 0)")
+                    ->execute([$targetUserId, $uType, $provName]);
+            }
 
-    $checkSub = $pdo->prepare("SELECT id FROM user_utilities WHERE user_id = ? AND utility_type = ?");
-    $checkSub->execute([$targetUserId, $uType]);
-    if ($checkSub->rowCount() == 0) {
-        $pdo->prepare("INSERT INTO user_utilities (user_id, utility_type, provider_name, rate_per_unit) VALUES (?, ?, ?, 0)")
-            ->execute([$targetUserId, $uType, $provName]);
-    }
+            $stmtBill = $pdo->prepare("
+                INSERT INTO utility_bills 
+                (user_id, utility_type, provider_name, previous_reading, present_reading, consumption, amount, due_date, status, encoded_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
+            ");
+            $stmtBill->execute([$targetUserId, $uType, $provName, $prevRead, $presRead, $consumption, $amount, $dueDate, $userId]);
 
-    $stmtBill = $pdo->prepare("
-        INSERT INTO utility_bills 
-        (user_id, utility_type, provider_name, previous_reading, present_reading, consumption, amount, due_date, status, encoded_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
-    ");
-    $stmtBill->execute([$targetUserId, $uType, $provName, $prevRead, $presRead, $consumption, $amount, $dueDate, $userId]);
-
-    log_activity($pdo, $userId, 'ENCODE_BILL', "Encoded $uType bill (₱$amount) for User ID #$targetUserId");
-    $flashMsg = "Bill encoded and published to the consumer's dashboard!";
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' AND isset($_POST['submit_bill_payment'])) {
-    $billId     = (int)$_POST['pay_bill_id'];
-    $channel    = trim($_POST['payment_channel'] ?? 'GCash');
-    $identifier = trim($_POST['account_identifier'] ?? '');
-    $isWalkIn   = (strpos($channel, 'Nearest Branch') !== false);
-    $refNo      = $isWalkIn
-        ? ('UTS-BRANCH-' . strtoupper(substr(md5(uniqid((string)$billId, true)), 0, 8)))
-        : ('UTS-PAY-' . strtoupper(substr(md5(uniqid((string)$billId, true)), 0, 8)));
-
-    $bCheck = $pdo->prepare("SELECT * FROM utility_bills WHERE bill_id = ?");
-    $bCheck->execute([$billId]);
-    $foundBill = $bCheck->fetch();
-
-    if ($foundBill) {
-        $amtPaid = (float)$foundBill['amount'];
-        $mode    = $isWalkIn ? 'WALK_IN_BRANCH' : 'ONLINE_INSTANT';
-
-        $payStmt = $pdo->prepare("
-            INSERT INTO bill_payments (bill_id, user_id, payment_channel, account_identifier, reference_no, amount_paid, payment_mode)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ");
-        $payStmt->execute([$billId, $userId, $channel, $identifier, $refNo, $amtPaid, $mode]);
-
-        if ($isWalkIn) {
-            log_activity($pdo, $userId, 'WALKIN_SLIP', "Generated walk-in branch payment slip ($refNo) for Bill #$billId");
-            $flashMsg = "Walk-In Branch Slip #$refNo generated! Your bill stays PENDING until paid at the physical branch and verified by Staff.";
+            log_activity($pdo, $userId, 'ENCODE_BILL', "Encoded $uType bill (₱$amount) for User ID #$targetUserId");
+            $_SESSION['flash_msg'] = "Bill encoded and published to the consumer's dashboard!";
         } else {
-            $pdo->prepare("UPDATE utility_bills SET status = 'PAID' WHERE bill_id = ?")->execute([$billId]);
-            log_activity($pdo, $userId, 'ONLINE_PAYMENT', "Paid Bill #$billId (₱$amtPaid) via $channel [Ref: $refNo]");
-            $flashMsg = "Payment successful via $channel! Official Receipt Ref: $refNo — Your bill has been automatically marked as PAID.";
+            $_SESSION['flash_msg']  = "Please enter a valid bill amount greater than ₱0.00.";
+            $_SESSION['flash_type'] = "warning";
         }
+        header("Location: dashboard.php");
+        exit();
+    }
+
+    if (isset($_POST['submit_bill_payment'])) {
+        $billId     = (int)$_POST['pay_bill_id'];
+        $channel    = trim($_POST['payment_channel'] ?? 'GCash');
+        $identifier = trim($_POST['account_identifier'] ?? '');
+        $isWalkIn   = (strpos($channel, 'Nearest Branch') !== false);
+        $refNo      = $isWalkIn
+            ? ('UTS-BRANCH-' . strtoupper(substr(md5(uniqid((string)$billId, true)), 0, 8)))
+            : ('UTS-PAY-' . strtoupper(substr(md5(uniqid((string)$billId, true)), 0, 8)));
+
+        if ($role === 'Consumer') {
+            $bCheck = $pdo->prepare("SELECT * FROM utility_bills WHERE bill_id = ? AND user_id = ? AND status != 'PAID' LIMIT 1");
+            $bCheck->execute([$billId, $userId]);
+        } else {
+            $bCheck = $pdo->prepare("SELECT * FROM utility_bills WHERE bill_id = ? AND status != 'PAID' LIMIT 1");
+            $bCheck->execute([$billId]);
+        }
+        $foundBill = $bCheck->fetch();
+
+        if ($foundBill) {
+            $amtPaid = (float)$foundBill['amount'];
+            $mode    = $isWalkIn ? 'WALK_IN_BRANCH' : 'ONLINE_INSTANT';
+
+            $payStmt = $pdo->prepare("
+                INSERT INTO bill_payments (bill_id, user_id, payment_channel, account_identifier, reference_no, amount_paid, payment_mode)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ");
+            $payStmt->execute([$billId, (int)$foundBill['user_id'], $channel, $identifier, $refNo, $amtPaid, $mode]);
+
+            if ($isWalkIn) {
+                log_activity($pdo, $userId, 'WALKIN_SLIP', "Generated walk-in branch payment slip ($refNo) for Bill #$billId");
+                $_SESSION['flash_msg'] = "Walk-In Branch Slip #$refNo generated! Your bill stays PENDING until paid at the physical branch and verified by Staff.";
+            } else {
+                $pdo->prepare("UPDATE utility_bills SET status = 'PAID' WHERE bill_id = ? AND status != 'PAID'")->execute([$billId]);
+                log_activity($pdo, $userId, 'ONLINE_PAYMENT', "Paid Bill #$billId (₱$amtPaid) via $channel [Ref: $refNo]");
+                $_SESSION['flash_msg'] = "Payment successful via $channel! Official Receipt Ref: $refNo — Your bill has been automatically marked as PAID.";
+            }
+        } else {
+            $_SESSION['flash_msg']  = "This bill is already paid or unavailable.";
+            $_SESSION['flash_type'] = "warning";
+        }
+        header("Location: dashboard.php");
+        exit();
     }
 }
 
@@ -176,6 +196,10 @@ $subscribedMap = [];
 foreach ($mySubscriptions as $sub) {
     $subscribedMap[$sub['utility_type']] = $sub;
 }
+
+$savedElec  = $subscribedMap['Electricity']['provider_name'] ?? 'Meralco';
+$savedWater = $subscribedMap['Water']['provider_name'] ?? 'PrimeWater Pampanga';
+$savedNet   = $subscribedMap['Internet']['provider_name'] ?? 'Converge ICT FiberX';
 
 if ($role === 'Consumer') {
     $billStmt = $pdo->prepare("SELECT * FROM utility_bills WHERE user_id = ? ORDER BY created_at DESC");
@@ -190,14 +214,23 @@ if ($role === 'Consumer') {
 }
 $allBills = $billStmt->fetchAll();
 
-$myReceiptsStmt = $pdo->prepare("
-    SELECT p.*, b.utility_type, b.provider_name
-    FROM bill_payments p
-    JOIN utility_bills b ON p.bill_id = b.bill_id
-    WHERE p.user_id = ?
-    ORDER BY p.paid_at DESC
-");
-$myReceiptsStmt->execute([$userId]);
+if ($role === 'Consumer') {
+    $myReceiptsStmt = $pdo->prepare("
+        SELECT p.*, b.utility_type, b.provider_name
+        FROM bill_payments p
+        JOIN utility_bills b ON p.bill_id = b.bill_id
+        WHERE p.user_id = ?
+        ORDER BY p.paid_at DESC
+    ");
+    $myReceiptsStmt->execute([$userId]);
+} else {
+    $myReceiptsStmt = $pdo->query("
+        SELECT p.*, b.utility_type, b.provider_name
+        FROM bill_payments p
+        JOIN utility_bills b ON p.bill_id = b.bill_id
+        ORDER BY p.paid_at DESC
+    ");
+}
 $myReceipts = $myReceiptsStmt->fetchAll();
 
 $latestBillByType = [];
@@ -256,7 +289,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($role); ?> Dashboard — UtiliSense</title>
-    <link rel="icon" type="image/jpeg" href="assets/images/logo.jpg">
+    <link rel="icon" type="image/jpeg" href="assets/images/logo.jpg?v=3">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css?v=6">
@@ -329,7 +362,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
         </header>
 
         <?php if (!empty($flashMsg)): ?>
-            <div class="alert alert-success alert-dismissible fade show rounded-4 py-2 px-4 mb-4 shadow-sm border-0">
+            <div class="alert alert-<?php echo htmlspecialchars($flashType); ?> alert-dismissible fade show rounded-4 py-2 px-4 mb-4 shadow-sm border-0">
                 <i class="bi bi-check-circle-fill me-1"></i> <?php echo htmlspecialchars($flashMsg); ?>
                 <button type="button" class="btn-close py-2" data-bs-dismiss="alert"></button>
             </div>
@@ -393,7 +426,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                     <div class="hero-stat-pill h-100">
                                         <div class="text-white-50 small mb-1" style="font-size: 0.7rem;">PAYMENT STATUS</div>
                                         <h4 class="fw-bold mb-0"><?php echo (int)$pendingCount; ?> <span class="fs-6 fw-normal text-white-50">Pending</span></h4>
-                                        <small class="text-success" style="font-size: 0.7rem;"><?php echo (int)$paidCount; ?> Paid Bills</small>
+                                        <small class="fw-semibold" style="font-size: 0.72rem; color: #6EE7B7;"><?php echo (int)$paidCount; ?> Paid Bills</small>
                                     </div>
                                 </div>
                             </div>
@@ -429,6 +462,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                                 <td><?php echo htmlspecialchars($u['email']); ?></td>
                                                 <td>
                                                     <form method="POST" action="dashboard.php" class="d-flex gap-1 m-0">
+                                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                                                         <input type="hidden" name="change_role_user_id" value="<?php echo (int)$u['user_id']; ?>">
                                                         <select name="new_role_id" class="form-select form-select-sm rounded-pill" style="width: 140px;" <?php echo ((int)$u['user_id'] === $userId) ? 'disabled' : ''; ?>>
                                                             <option value="1" <?php echo ($uRoleId === 1) ? 'selected' : ''; ?>>Administrator</option>
@@ -448,6 +482,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                                 <td>
                                                     <?php if ((int)$u['user_id'] !== $userId): ?>
                                                         <form method="POST" action="dashboard.php" class="m-0">
+                                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                                                             <input type="hidden" name="toggle_user_id" value="<?php echo (int)$u['user_id']; ?>">
                                                             <input type="hidden" name="current_status" value="<?php echo htmlspecialchars($u['status']); ?>">
                                                             <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
@@ -602,7 +637,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                                 <div class="text-white-50 small">
                                                     Due: <?php echo date('M j, Y', strtotime($b['due_date'])); ?>
                                                     <?php if ($b['consumption'] > 0): ?>
-- <?php echo number_format($b['consumption'], 0); ?> <?php echo $b['utility_type'] === 'Electricity' ? 'kWh' : 'm³'; ?>
+                                                        • <?php echo number_format($b['consumption'], 0); ?> <?php echo $b['utility_type'] === 'Electricity' ? 'kWh' : 'm³'; ?>
                                                     <?php endif; ?>
                                                 </div>
                                             </div>
@@ -813,6 +848,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                 </div>
                 <div class="modal-body p-4">
                     <form method="POST" action="dashboard.php">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                         <input type="hidden" name="submit_bill_payment" value="1">
                         <input type="hidden" name="pay_bill_id" id="payBillIdInput">
 
@@ -890,6 +926,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                 </div>
                 <div class="modal-body p-4">
                     <form method="POST" action="dashboard.php">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                         <input type="hidden" name="save_my_utilities" value="1">
                         <div class="p-3 bg-light rounded-4 mb-3 border">
                             <div class="form-check mb-2">
@@ -897,12 +934,12 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                 <label class="form-check-label fw-bold" for="uElec">Electricity Bill</label>
                             </div>
                             <select class="form-select custom-input py-2" name="provider[Electricity]">
-                                <option value="Meralco">Meralco (₱11.85 / kWh)</option>
-                                <option value="PELCO II">PELCO II Pampanga (₱10.90 / kWh)</option>
-                                <option value="PELCO I">PELCO I Pampanga (₱11.10 / kWh)</option>
-                                <option value="PELCO III">PELCO III Pampanga (₱11.05 / kWh)</option>
-                                <option value="SFELAPCO (San Fernando)">SFELAPCO San Fernando (₱12.05 / kWh)</option>
-                                <option value="Angeles Electric Corp (AEC)">Angeles Electric Corp (₱11.95 / kWh)</option>
+                                <option value="Meralco" <?php echo ($savedElec === 'Meralco') ? 'selected' : ''; ?>>Meralco (₱11.85 / kWh)</option>
+                                <option value="PELCO II" <?php echo ($savedElec === 'PELCO II') ? 'selected' : ''; ?>>PELCO II Pampanga (₱10.90 / kWh)</option>
+                                <option value="PELCO I" <?php echo ($savedElec === 'PELCO I') ? 'selected' : ''; ?>>PELCO I Pampanga (₱11.10 / kWh)</option>
+                                <option value="PELCO III" <?php echo ($savedElec === 'PELCO III') ? 'selected' : ''; ?>>PELCO III Pampanga (₱11.05 / kWh)</option>
+                                <option value="SFELAPCO (San Fernando)" <?php echo ($savedElec === 'SFELAPCO (San Fernando)') ? 'selected' : ''; ?>>SFELAPCO San Fernando (₱12.05 / kWh)</option>
+                                <option value="Angeles Electric Corp (AEC)" <?php echo ($savedElec === 'Angeles Electric Corp (AEC)') ? 'selected' : ''; ?>>Angeles Electric Corp (₱11.95 / kWh)</option>
                             </select>
                         </div>
                         <div class="p-3 bg-light rounded-4 mb-3 border">
@@ -911,10 +948,10 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                 <label class="form-check-label fw-bold" for="uWater">Water Bill</label>
                             </div>
                             <select class="form-select custom-input py-2" name="provider[Water]">
-                                <option value="PrimeWater Pampanga">PrimeWater Pampanga (₱38.50 / m³)</option>
-                                <option value="Angeles City Water District">Angeles City Water District (₱36.00 / m³)</option>
-                                <option value="San Fernando Water District">City of San Fernando Water District (₱37.20 / m³)</option>
-                                <option value="Mabalacat City Water District">Mabalacat City Water District (₱36.80 / m³)</option>
+                                <option value="PrimeWater Pampanga" <?php echo ($savedWater === 'PrimeWater Pampanga') ? 'selected' : ''; ?>>PrimeWater Pampanga (₱38.50 / m³)</option>
+                                <option value="Angeles City Water District" <?php echo ($savedWater === 'Angeles City Water District') ? 'selected' : ''; ?>>Angeles City Water District (₱36.00 / m³)</option>
+                                <option value="San Fernando Water District" <?php echo ($savedWater === 'San Fernando Water District') ? 'selected' : ''; ?>>City of San Fernando Water District (₱37.20 / m³)</option>
+                                <option value="Mabalacat City Water District" <?php echo ($savedWater === 'Mabalacat City Water District') ? 'selected' : ''; ?>>Mabalacat City Water District (₱36.80 / m³)</option>
                             </select>
                         </div>
                         <div class="p-3 bg-light rounded-4 mb-4 border">
@@ -923,9 +960,9 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                                 <label class="form-check-label fw-bold" for="uNet">Internet / WiFi Bill</label>
                             </div>
                             <select class="form-select custom-input py-2" name="provider[Internet]">
-                                <option value="Converge ICT FiberX">Converge ICT FiberX (₱1,500 / mo)</option>
-                                <option value="PLDT Home Fiber">PLDT Home Fiber (₱1,699 / mo)</option>
-                                <option value="Globe At Home">Globe At Home (₱1,499 / mo)</option>
+                                <option value="Converge ICT FiberX" <?php echo ($savedNet === 'Converge ICT FiberX') ? 'selected' : ''; ?>>Converge ICT FiberX (₱1,500 / mo)</option>
+                                <option value="PLDT Home Fiber" <?php echo ($savedNet === 'PLDT Home Fiber') ? 'selected' : ''; ?>>PLDT Home Fiber (₱1,699 / mo)</option>
+                                <option value="Globe At Home" <?php echo ($savedNet === 'Globe At Home') ? 'selected' : ''; ?>>Globe At Home (₱1,499 / mo)</option>
                             </select>
                         </div>
                         <button type="submit" class="btn btn-pill-navy w-100">Save Selected Utilities</button>
@@ -945,6 +982,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                 </div>
                 <div class="modal-body p-4">
                     <form method="POST" action="dashboard.php">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                         <input type="hidden" name="encode_bill" value="1">
                         <div class="mb-3">
                             <label class="form-label small fw-semibold">Select Consumer Account</label>
