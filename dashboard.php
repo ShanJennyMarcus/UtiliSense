@@ -822,7 +822,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
             </div>
             <?php endif; ?>
 
-            <div class="tab-pane fade" id="tab-profile" role="tabpanel">
+           <div class="tab-pane fade" id="tab-profile" role="tabpanel">
                 <div class="squircle-card p-5 shadow-sm bg-white mx-auto text-center" style="max-width: 480px;">
                     <div class="rounded-circle d-inline-flex align-items-center justify-content-center text-white mb-3 shadow" style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--blue-med), var(--navy-deep));">
                         <i class="bi bi-person-fill display-5"></i>
@@ -830,97 +830,27 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                     <h4 class="fw-bold mb-1" style="color: var(--navy-deep);"><?php echo htmlspecialchars($currentUser['name']); ?></h4>
                     <p class="text-muted small mb-2"><?php echo htmlspecialchars($currentUser['email']); ?></p>
                     <span class="badge rounded-pill px-3 py-2 mb-4" style="background: var(--navy-deep);"><?php echo htmlspecialchars($role); ?> Account</span>
-                    <a href="logout.php" class="btn btn-danger w-100 rounded-pill py-2 fw-semibold">Sign Out of UtiliSense</a>
-                </div>
-            </div>
 
-        </div>
-    </div>
-
-    <?php if ($role === 'Consumer'): ?>
-    <div class="modal fade" id="payBillModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content squircle-card border-0 shadow-lg">
-                <div class="modal-header border-0 pb-0">
-                    <div>
-                        <span class="badge rounded-pill bg-success-subtle text-success mb-1" style="font-size: 0.68rem;">
-                            <i class="bi bi-shield-lock-fill me-1"></i> Automated Online Payment Gateway
-                        </span>
-                        <h5 class="modal-title fw-bold" style="color: var(--navy-deep);">Pay Utility Statement</h5>
+                    <div class="text-start bg-light rounded-4 p-3 border small">
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Account ID</span>
+                            <span class="fw-bold" style="color: var(--navy-deep);">#<?php echo (int)$liveUser['user_id']; ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Account Status</span>
+                            <span class="badge rounded-pill bg-success"><?php echo strtoupper(htmlspecialchars($liveUser['status'] ?? 'active')); ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Last Login</span>
+                            <span class="fw-semibold"><?php echo !empty($liveUser['last_login']) ? date('M j, Y g:i A', strtotime($liveUser['last_login'])) : 'Active Session'; ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between pt-2">
+                            <span class="text-muted">Member Since</span>
+                            <span class="fw-semibold"><?php echo !empty($liveUser['created_at']) ? date('M j, Y', strtotime($liveUser['created_at'])) : '—'; ?></span>
+                        </div>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form method="POST" action="dashboard.php">
-                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-                        <input type="hidden" name="submit_bill_payment" value="1">
-                        <input type="hidden" name="pay_bill_id" id="payBillIdInput">
-
-                        <div class="p-3 rounded-4 mb-3 text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, var(--navy-deep), var(--blue-med));">
-                            <div>
-                                <small class="text-white-50 d-block" style="font-size: 0.72rem;">Utility & Provider</small>
-                                <span class="fw-bold" id="payBillerLabel">Electricity — Meralco</span>
-                            </div>
-                            <div class="text-end">
-                                <small class="text-white-50 d-block" style="font-size: 0.72rem;">Amount Due</small>
-                                <h4 class="fw-bold mb-0 text-info" id="payAmountLabel">₱0.00</h4>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold" style="color: var(--navy-deep);">Choose Payment Method (Instant Online Recommended)</label>
-                            <select class="form-select custom-input py-2" name="payment_channel" id="paymentChannelSelect" onchange="handlePaymentChannelChange()" required>
-                                <optgroup label="Instant E-Wallets (Zero Queue)">
-                                    <option value="GCash" selected>GCash Express Checkout</option>
-                                    <option value="Maya (PayMaya)">Maya (PayMaya) Wallet</option>
-                                    <option value="GrabPay">GrabPay Wallet</option>
-                                    <option value="ShopeePay">ShopeePay Wallet</option>
-                                </optgroup>
-                                <optgroup label="Digital & Online Banking">
-                                    <option value="MariBank (SeaBank)">MariBank (SeaBank Instant Transfer)</option>
-                                    <option value="GoTyme Bank">GoTyme Bank</option>
-                                    <option value="BDO Online">BDO Unibank Online</option>
-                                    <option value="BPI Online">BPI Mobile / Online</option>
-                                    <option value="UnionBank">UnionBank Online</option>
-                                    <option value="LandBank iAccess">LandBank iAccess</option>
-                                </optgroup>
-                                <optgroup label="Cards & QR Ph">
-                                    <option value="Debit / Credit Card (Visa / Mastercard)">Debit or Credit Card (Visa / Mastercard)</option>
-                                    <option value="QR Ph Instant Scan">QR Ph National QR Scan</option>
-                                </optgroup>
-                                <optgroup label="Last Resort (Only If You Have No Digital Account)">
-                                    <option value="Nearest Branch / Over-the-Counter (Last Resort)">Nearest Physical Branch / Over-the-Counter (Last Option)</option>
-                                </optgroup>
-                            </select>
-                        </div>
-
-                        <div id="onlineFieldsBox">
-                            <div class="mb-3">
-                                <label class="form-label small fw-semibold" id="accountFieldLabel">GCash Mobile Number</label>
-                                <input type="text" class="form-control custom-input py-2" name="account_identifier" id="accountFieldInput" placeholder="e.g. 0917-XXX-XXXX" required>
-                            </div>
-                            <div class="alert alert-success rounded-4 py-2 px-3 small mb-3">
-                                <i class="bi bi-lightning-charge-fill me-1"></i>
-                                <strong>Automated Verification:</strong> Completing this payment generates an official digital receipt and <strong>automatically marks your bill as PAID</strong>.
-                            </div>
-                        </div>
-
-                        <div id="walkInNoticeBox" style="display: none;">
-                            <div class="alert alert-warning rounded-4 py-3 px-3 small mb-3">
-                                <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Physical Branch Walk-In (Last Option Only)</div>
-                                UtiliSense is programmed so you never have to visit a physical store. Choose this <strong>only if you have no access to GCash, Maya, MariBank, or a bank card</strong>. Your bill will stay <strong>PENDING</strong> until paid at the nearest Pampanga branch and verified by Staff.
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-pill-aqua w-100 py-3 shadow-sm" id="paySubmitBtn">
-                            <i class="bi bi-check2-circle me-1"></i> Pay Now & Automatically Mark as Paid
-                        </button>
-                    </form>
                 </div>
             </div>
-        </div>
-    </div>
-
     <div class="modal fade" id="chooseUtilitiesModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content squircle-card border-0 shadow-lg">
@@ -975,7 +905,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
             </div>
         </div>
     </div>
-    <?php endif; ?>
+
 
     <?php if ($role !== 'Consumer'): ?>
     <div class="modal fade" id="encodeBillModal" tabindex="-1" aria-hidden="true">
