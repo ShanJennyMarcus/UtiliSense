@@ -289,9 +289,77 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css?v=6">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-
+<style>
+        .portal-sidebar-layout {
+            display: flex;
+            gap: 1.5rem;
+            align-items: flex-start;
+        }
+        .portal-sidebar-nav {
+            flex: 0 0 228px;
+            position: sticky;
+            top: 1.25rem;
+        }
+        .portal-sidebar-nav .morph-nav-dock {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            width: 100%;
+            border-radius: 26px !important;
+            padding: 10px !important;
+            gap: 6px;
+        }
+        .portal-sidebar-nav .morph-nav-btn {
+            width: 100%;
+            justify-content: flex-start;
+            padding: 12px 16px;
+            transition: background 0.35s ease, color 0.3s ease, transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s ease, padding 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .portal-sidebar-nav .morph-nav-btn .nav-label {
+            max-width: 180px;
+            opacity: 1;
+            margin-left: 12px;
+            transform: translateX(0);
+            transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), color 0.3s ease;
+        }
+        .portal-sidebar-nav .morph-nav-btn:hover:not(.active) {
+            transform: translateX(4px);
+        }
+        .portal-sidebar-nav .morph-nav-btn.active {
+            padding: 12px 20px;
+            transform: translateX(4px) scale(1.02);
+        }
+        .portal-sidebar-nav .morph-nav-btn.active i {
+            transform: scale(1.15);
+        }
+        .portal-main-content {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        @media (max-width: 991.98px) {
+            .portal-sidebar-layout {
+                flex-direction: column;
+            }
+            .portal-sidebar-nav {
+                flex: none;
+                width: 100%;
+                position: static;
+            }
+            .portal-sidebar-nav .morph-nav-dock {
+                flex-direction: row;
+                justify-content: center;
+                flex-wrap: wrap;
+                border-radius: 999px !important;
+                padding: 6px 8px !important;
+            }
+            .portal-sidebar-nav .morph-nav-btn {
+                width: auto;
+            }
+            .portal-sidebar-nav .morph-nav-btn.active {
+                transform: scale(1.03);
+            }
+        }
+    </style>
     <div class="container-fluid py-3 px-3 px-md-4 w-100">
         
         <header class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 portal-header">
@@ -309,7 +377,25 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                 </div>
             </a>
 
-            <div class="portal-nav-wrap">
+            <div class="d-flex align-items-center gap-2 bg-white px-3 py-2 rounded-pill shadow-sm border">
+                <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold" style="width: 34px; height: 34px; background: var(--navy-deep); font-size: 0.85rem;">
+                    <?php echo strtoupper(substr($currentUser['name'], 0, 1)); ?>
+                </div>
+                <div class="pe-2 d-none d-sm-block">
+                    <div class="fw-bold small lh-1" style="color: var(--navy-deep);"><?php echo htmlspecialchars($currentUser['name']); ?></div>
+                    <span class="badge rounded-pill <?php echo $role === 'Administrator' ? 'bg-danger' : 'bg-primary'; ?>" style="font-size: 0.62rem;">
+                        <?php echo htmlspecialchars($role); ?>
+                    </span>
+                </div>
+                <a href="logout.php" class="btn btn-sm btn-light rounded-circle text-danger border" title="Sign Out">
+                    <i class="bi bi-power"></i>
+                </a>
+            </div>
+        </header>
+
+        <div class="portal-sidebar-layout">
+
+            <aside class="portal-sidebar-nav">
                 <ul class="morph-nav-dock mb-0" id="dashTabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="morph-nav-btn active" data-bs-toggle="pill" data-bs-target="#tab-home" type="button" role="tab">
@@ -338,519 +424,595 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                         </button>
                     </li>
                 </ul>
-            </div>
+            </aside>
 
-            <div class="d-flex align-items-center gap-2 bg-white px-3 py-2 rounded-pill shadow-sm border">
-                <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold" style="width: 34px; height: 34px; background: var(--navy-deep); font-size: 0.85rem;">
-                    <?php echo strtoupper(substr($currentUser['name'], 0, 1)); ?>
-                </div>
-                <div class="pe-2 d-none d-sm-block">
-                    <div class="fw-bold small lh-1" style="color: var(--navy-deep);"><?php echo htmlspecialchars($currentUser['name']); ?></div>
-                    <span class="badge rounded-pill <?php echo $role === 'Administrator' ? 'bg-danger' : 'bg-primary'; ?>" style="font-size: 0.62rem;">
-                        <?php echo htmlspecialchars($role); ?>
-                    </span>
-                </div>
-                <a href="logout.php" class="btn btn-sm btn-light rounded-circle text-danger border" title="Sign Out">
-                    <i class="bi bi-power"></i>
-                </a>
-            </div>
-        </header>
+            <main class="portal-main-content">
 
-        <?php if (!empty($flashMsg)): ?>
-            <div class="alert alert-<?php echo htmlspecialchars($flashType); ?> alert-dismissible fade show rounded-4 py-2 px-4 mb-4 shadow-sm border-0">
-                <i class="bi bi-check-circle-fill me-1"></i> <?php echo htmlspecialchars($flashMsg); ?>
-                <button type="button" class="btn-close py-2" data-bs-dismiss="alert"></button>
-            </div>
-        <?php endif; ?>
-
-        <div class="tab-content" id="dashTabContent">
-
-            <div class="tab-pane fade show active" id="tab-home" role="tabpanel">
-                
-                <div class="bento-hero mb-4">
-                    <div class="row align-items-center g-4">
-                        <div class="col-lg-5">
-                            <span class="badge rounded-pill px-3 py-1 mb-2" style="background: rgba(56, 189, 248, 0.22); color: #38BDF8; font-size: 0.72rem;">
-                                <i class="bi <?php echo $role === 'Administrator' ? 'bi-shield-lock-fill' : 'bi-stars'; ?> me-1"></i>
-                                <?php echo strtoupper(htmlspecialchars($role)); ?> COMMAND CENTER
-                            </span>
-                            <h2 class="fw-bold mb-3">Hello, <?php echo htmlspecialchars($firstName); ?>!</h2>
-                            <?php if ($role === 'Administrator'): ?>
-                                <p class="text-white-50 small mb-3">
-                                    Manage all registered Pampanga user accounts, assign Staff/Admin permissions, encode bills, and audit security logs.
-                                </p>
-                            <?php endif; ?>
-                            <div class="d-flex flex-wrap gap-2">
-                                <?php if ($role === 'Consumer'): ?>
-                                    <button class="btn btn-pill-aqua btn-sm px-3 py-2" data-bs-toggle="modal" data-bs-target="#chooseUtilitiesModal">
-                                        <i class="bi bi-sliders me-1"></i> Choose My Utilities
-                                    </button>
-                                <?php else: ?>
-                                    <button class="btn btn-light btn-sm rounded-pill px-3 py-2 fw-bold" style="color: var(--navy-deep);" data-bs-toggle="modal" data-bs-target="#encodeBillModal">
-                                        <i class="bi bi-plus-circle-fill me-1 text-primary"></i> Encode Consumer Bill
-                                    </button>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-
-                        <div class="col-lg-7">
-                            <div class="row g-3">
-                                <div class="col-sm-4">
-                                    <div class="hero-stat-pill h-100">
-                                        <div class="text-white-50 small mb-1" style="font-size: 0.7rem;">
-                                            <?php echo ($role === 'Consumer') ? 'MY TOTAL RECORDED' : 'SYSTEM BILLING VOLUME'; ?>
-                                        </div>
-                                        <h4 class="fw-bold mb-0 text-break" style="font-size: clamp(1rem, 1.45vw, 1.35rem);">₱<?php echo number_format($totalSpent, 2); ?></h4>
-                                        <small class="text-info" style="font-size: 0.7rem;"><i class="bi bi-database-check"></i> Live MySQL Total</small>
-                                    </div>
-                                </div>
-                                <div class="col-sm-4">
-                                    <div class="hero-stat-pill h-100">
-                                        <div class="text-white-50 small mb-1" style="font-size: 0.7rem;">
-                                            <?php echo ($role === 'Administrator') ? 'REGISTERED ACCOUNTS' : 'HIGHEST EXPENSE'; ?>
-                                        </div>
-                                        <h5 class="fw-bold mb-0 text-warning text-truncate">
-                                            <?php echo ($role === 'Administrator') ? count($allUsersList) . ' Active Users' : htmlspecialchars($highestUtility); ?>
-                                        </h5>
-                                        <small class="text-white-50" style="font-size: 0.7rem;">
-                                            <?php echo ($role === 'Administrator') ? count($consumersList) . ' Consumers' : 'Top Category'; ?>
-                                        </small>
-                                    </div>
-                                </div>
-                                <div class="col-sm-4">
-                                    <div class="hero-stat-pill h-100">
-                                        <div class="text-white-50 small mb-1" style="font-size: 0.7rem;">PAYMENT STATUS</div>
-                                        <h4 class="fw-bold mb-0"><?php echo (int)$pendingCount; ?> <span class="fs-6 fw-normal text-white-50">Pending</span></h4>
-                                        <small class="fw-semibold" style="font-size: 0.72rem; color: #6EE7B7;"><?php echo (int)$paidCount; ?> Paid Bills</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <?php if ($role === 'Administrator'): ?>
-                    <div class="row g-4 mb-4">
-                        <div class="col-xl-8">
-                            <div class="squircle-card p-4 shadow-sm bg-white h-100">
-                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                                    <div>
-                                        <h5 class="fw-bold mb-0" style="color: var(--navy-deep);">
-                                            <i class="bi bi-people-fill text-primary me-2"></i>System User & Role Management
-                                        </h5>
-                                        <small class="text-muted">Promote accounts to Staff/Admin or toggle active status</small>
-                                    </div>
-                                    <span class="badge rounded-pill bg-primary-subtle text-primary px-3 py-2">
-                                        <?php echo count($allUsersList); ?> Total Accounts
-                                    </span>
-                                </div>
-                                <div class="table-responsive">
-                                    <table class="table table-hover align-middle mb-0 small">
-                                        <thead class="table-light">
-                                            <tr><th>ID</th><th>Full Name</th><th>Email</th><th>Assign Role</th><th>Status</th><th>Action</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($allUsersList as $u): $uRoleId = (int)$u['role_id']; ?>
-                                            <tr>
-                                                <td class="fw-bold">#<?php echo (int)$u['user_id']; ?></td>
-                                                <td class="fw-semibold"><?php echo htmlspecialchars($u['full_name']); ?></td>
-                                                <td><?php echo htmlspecialchars($u['email']); ?></td>
-                                                <td>
-                                                    <form method="POST" action="dashboard.php" class="d-flex gap-1 m-0">
-                                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-                                                        <input type="hidden" name="change_role_user_id" value="<?php echo (int)$u['user_id']; ?>">
-                                                        <select name="new_role_id" class="form-select form-select-sm rounded-pill" style="width: 140px;" <?php echo ((int)$u['user_id'] === $userId) ? 'disabled' : ''; ?>>
-                                                            <option value="1" <?php echo ($uRoleId === 1) ? 'selected' : ''; ?>>Administrator</option>
-                                                            <option value="2" <?php echo ($uRoleId === 2) ? 'selected' : ''; ?>>Staff</option>
-                                                            <option value="3" <?php echo ($uRoleId === 3) ? 'selected' : ''; ?>>Consumer</option>
-                                                        </select>
-                                                        <?php if ((int)$u['user_id'] !== $userId): ?>
-                                                            <button type="submit" class="btn btn-sm btn-pill-navy py-1 px-3">Save</button>
-                                                        <?php endif; ?>
-                                                    </form>
-                                                </td>
-                                                <td>
-                                                    <span class="badge rounded-pill bg-<?php echo ($u['status'] === 'active') ? 'success' : 'secondary'; ?>">
-                                                        <?php echo strtoupper(htmlspecialchars($u['status'])); ?>
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <?php if ((int)$u['user_id'] !== $userId): ?>
-                                                        <form method="POST" action="dashboard.php" class="m-0">
-                                                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-                                                            <input type="hidden" name="toggle_user_id" value="<?php echo (int)$u['user_id']; ?>">
-                                                            <input type="hidden" name="current_status" value="<?php echo htmlspecialchars($u['status']); ?>">
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
-                                                                <?php echo ($u['status'] === 'active') ? 'Deactivate' : 'Activate'; ?>
-                                                            </button>
-                                                        </form>
-                                                    <?php else: ?>
-                                                        <span class="text-muted fst-italic">Current Admin</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                            </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-4">
-                            <div class="navy-panel p-4 shadow h-100">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h5 class="fw-bold mb-0"><i class="bi bi-shield-check text-info me-2"></i>Recent Security Audit</h5>
-                                    <span class="badge rounded-pill bg-info text-dark"><?php echo count($auditLogsList); ?> Logs</span>
-                                </div>
-                                <div style="max-height: 340px; overflow-y: auto;">
-                                    <?php foreach (array_slice($auditLogsList, 0, 8) as $log):
-                                        $actType = $log['action_type'] ?? $log['action'] ?? 'EVENT';
-                                        $actDesc = $log['description'] ?? $log['details'] ?? $log['action_description'] ?? 'System activity recorded';
-                                        $actUser = $log['full_name'] ?? (!empty($log['user_id']) ? 'User #' . $log['user_id'] : 'System');
-                                    ?>
-                                        <div class="py-2 border-bottom border-light border-opacity-10 small">
-                                            <div class="d-flex justify-content-between">
-                                                <span class="fw-bold text-info"><?php echo htmlspecialchars((string)$actType); ?></span>
-                                                <span class="text-white-50" style="font-size: 0.7rem;"><?php echo htmlspecialchars((string)($log['created_at'] ?? '')); ?></span>
-                                            </div>
-                                            <div class="text-white small"><?php echo htmlspecialchars((string)$actDesc); ?></div>
-                                            <small class="text-white-50" style="font-size: 0.68rem;">By: <?php echo htmlspecialchars((string)$actUser); ?></small>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                <?php else: ?>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0" style="color: var(--navy-deep);">
-                            <i class="bi bi-lightning-charge-fill text-primary me-1"></i> Your Subscribed Utility Cards
-                        </h5>
-                        <small class="text-muted">Pay any pending bill online to automatically settle it</small>
-                    </div>
-
-                    <div class="row g-4 mb-4">
-                        <?php if (empty($mySubscriptions)): ?>
-                            <div class="col-12">
-                                <div class="squircle-card p-5 text-center bg-white h-100 d-flex flex-column justify-content-center align-items-center">
-                                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px; background: rgba(28, 104, 197, 0.1); color: var(--blue-med);">
-                                        <i class="bi bi-sliders fs-3"></i>
-                                    </div>
-                                    <h5 class="fw-bold mb-1" style="color: var(--navy-deep);">Your dashboard starts clean at ₱0.00</h5>
-                                    <p class="text-muted small mb-3" style="max-width: 460px;">
-                                        Select which bills you hold (Electricity, Water, or Internet) and your Pampanga provider to create your live cards.
-                                    </p>
-                                    <button class="btn btn-pill-navy btn-sm px-4" data-bs-toggle="modal" data-bs-target="#chooseUtilitiesModal">
-                                        Choose My Utilities Now
-                                    </button>
-                                </div>
-                            </div>
-                        <?php else: ?>
-                            <?php
-                            $cardStyles = ['card-blue-primary', 'card-aqua-secondary', 'card-indigo-tertiary'];
-                            foreach ($mySubscriptions as $idx => $sub):
-                                $uType      = $sub['utility_type'];
-                                $provider   = $sub['provider_name'];
-                                $bill       = $latestBillByType[$uType] ?? null;
-                                $cardClass  = $cardStyles[$idx % count($cardStyles)];
-                                $iconClass  = ($uType === 'Electricity') ? 'bi-lightning-charge-fill' : (($uType === 'Water') ? 'bi-droplet-fill' : 'bi-wifi');
-                                $displayAmt = $bill ? (float)$bill['amount'] : 0;
-                            ?>
-                            <div class="col-12 col-md-4">
-                                <div class="<?php echo $cardClass; ?> p-4 shadow-sm h-100 d-flex flex-column justify-content-between">
-                                    <div class="d-flex justify-content-between align-items-start mb-3">
-                                        <div>
-                                            <span class="badge bg-white bg-opacity-25 text-white rounded-pill mb-2" style="font-size: 0.68rem;">
-                                                <?php echo htmlspecialchars($provider); ?>
-                                            </span>
-                                            <h6 class="fw-bold mb-0"><?php echo htmlspecialchars($uType); ?></h6>
-                                        </div>
-                                        <div class="utility-icon-orb"><i class="bi <?php echo $iconClass; ?>"></i></div>
-                                    </div>
-                                    <div class="my-2">
-                                        <small class="opacity-75 d-block" style="font-size: 0.72rem;">Current Recorded Amount</small>
-                                        <h2 class="fw-bold mb-0">₱<?php echo number_format($displayAmt, 2); ?></h2>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center pt-3 mt-2 border-top border-white border-opacity-10">
-                                        <span class="small opacity-75" style="font-size: 0.74rem;">
-                                            <?php echo $bill ? 'Due ' . date('M j, Y', strtotime($bill['due_date'])) : 'No active bill yet'; ?>
-                                        </span>
-                                        <?php if ($bill): ?>
-                                            <?php if ($bill['status'] === 'PAID'): ?>
-                                                <span class="badge bg-success rounded-pill px-2 py-1" style="font-size: 0.68rem;">
-                                                    <i class="bi bi-check-circle-fill me-1"></i>PAID
-                                                </span>
-                                            <?php else: ?>
-                                                <button type="button"
-                                                        class="btn btn-sm btn-warning fw-bold text-dark rounded-pill py-0 px-3 shadow-sm"
-                                                        style="font-size: 0.72rem;"
-                                                        onclick="openPayModal(<?php echo (int)$bill['bill_id']; ?>, '<?php echo htmlspecialchars($uType . ' — ' . $provider, ENT_QUOTES); ?>', <?php echo $displayAmt; ?>)">
-                                                    <i class="bi bi-wallet2 me-1"></i>Pay Now
-                                                </button>
-                                            <?php endif; ?>
-                                        <?php else: ?>
-                                            <span class="badge bg-white bg-opacity-25 text-white rounded-pill" style="font-size: 0.65rem;">₱0.00</span>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                <?php if (!empty($flashMsg)): ?>
+                    <div class="alert alert-<?php echo htmlspecialchars($flashType); ?> alert-dismissible fade show rounded-4 py-2 px-4 mb-4 shadow-sm border-0">
+                        <i class="bi bi-check-circle-fill me-1"></i> <?php echo htmlspecialchars($flashMsg); ?>
+                        <button type="button" class="btn-close py-2" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
 
-                <div class="row g-4">
-                    <div class="col-lg-6">
-                        <div class="navy-panel p-4 shadow h-100">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <div>
-                                    <h5 class="fw-bold mb-0">
-                                        <?php echo ($role === 'Consumer') ? 'Recent Transactions & Alerts' : 'All Consumer Billing Feed'; ?>
-                                    </h5>
-                                    <small class="text-white-50">
-                                        <?php echo ($role === 'Consumer') ? 'Pay online to automatically mark bills as PAID' : 'Live monitoring of encoded consumer statements and payment statuses'; ?>
-                                    </small>
-                                </div>
-                                <span class="badge rounded-pill px-3 py-2" style="background: rgba(56, 189, 248, 0.2); color: #38BDF8;">
-                                    <?php echo count($allBills); ?> Records
-                                </span>
-                            </div>
+                <div class="tab-content" id="dashTabContent">
 
-                            <?php if (count($allBills) > 0): ?>
-                                <?php foreach (array_slice($allBills, 0, 5) as $b): ?>
-                                    <div class="d-flex justify-content-between align-items-center py-3 border-bottom border-light border-opacity-10">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <div class="rounded-4 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; background: rgba(43, 169, 224, 0.18); color: #38BDF8;">
-                                                <i class="bi bi-receipt fs-5"></i>
-                                            </div>
-                                            <div>
-                                                <div class="fw-bold">
-                                                    <?php echo htmlspecialchars($b['utility_type'] . ' — ' . $b['provider_name']); ?>
-                                                    <?php if ($role !== 'Consumer'): ?>
-                                                        <span class="badge bg-info text-dark ms-1" style="font-size: 0.65rem;"><?php echo htmlspecialchars($b['full_name'] ?? ''); ?></span>
-                                                    <?php endif; ?>
+                    <div class="tab-pane fade show active" id="tab-home" role="tabpanel">
+                        
+                        <div class="bento-hero mb-4">
+                            <div class="row align-items-center g-4">
+                                <div class="col-lg-5">
+                                    <span class="badge rounded-pill px-3 py-1 mb-2" style="background: rgba(56, 189, 248, 0.22); color: #38BDF8; font-size: 0.72rem;">
+                                        <i class="bi <?php echo $role === 'Administrator' ? 'bi-shield-lock-fill' : 'bi-stars'; ?> me-1"></i>
+                                        <?php echo strtoupper(htmlspecialchars($role)); ?> COMMAND CENTER
+                                    </span>
+                                    <h2 class="fw-bold mb-3">Hello, <?php echo htmlspecialchars($firstName); ?>!</h2>
+                                    <?php if ($role === 'Administrator'): ?>
+                                        <p class="text-white-50 small mb-3">
+                                            Manage all registered Pampanga user accounts, assign Staff/Admin permissions, encode bills, and audit security logs.
+                                        </p>
+                                    <?php endif; ?>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <?php if ($role === 'Consumer'): ?>
+                                            <button class="btn btn-pill-aqua btn-sm px-3 py-2" data-bs-toggle="modal" data-bs-target="#chooseUtilitiesModal">
+                                                <i class="bi bi-sliders me-1"></i> Choose My Utilities
+                                            </button>
+                                        <?php else: ?>
+                                            <button class="btn btn-light btn-sm rounded-pill px-3 py-2 fw-bold" style="color: var(--navy-deep);" data-bs-toggle="modal" data-bs-target="#encodeBillModal">
+                                                <i class="bi bi-plus-circle-fill me-1 text-primary"></i> Encode Consumer Bill
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-7">
+                                    <div class="row g-3">
+                                        <div class="col-sm-4">
+                                            <div class="hero-stat-pill h-100">
+                                                <div class="text-white-50 small mb-1" style="font-size: 0.7rem;">
+                                                    <?php echo ($role === 'Consumer') ? 'MY TOTAL RECORDED' : 'SYSTEM BILLING VOLUME'; ?>
                                                 </div>
-                                                <div class="text-white-50 small">
-                                                    Due: <?php echo date('M j, Y', strtotime($b['due_date'])); ?>
-                                                    <?php if ($b['consumption'] > 0): ?>
-                                                        • <?php echo number_format($b['consumption'], 0); ?> <?php echo $b['utility_type'] === 'Electricity' ? 'kWh' : 'm³'; ?>
-                                                    <?php endif; ?>
-                                                </div>
+                                                <h4 class="fw-bold mb-0 text-break" style="font-size: clamp(1rem, 1.45vw, 1.35rem);">₱<?php echo number_format($totalSpent, 2); ?></h4>
+                                                <small class="text-info" style="font-size: 0.7rem;"><i class="bi bi-database-check"></i> Live MySQL Total</small>
                                             </div>
                                         </div>
-                                        <div class="text-end">
-                                            <div class="fw-bold fs-5">₱<?php echo number_format($b['amount'], 2); ?></div>
-                                            <?php if ($role === 'Consumer' AND $b['status'] !== 'PAID'): ?>
-                                                <button type="button"
-                                                        class="btn btn-sm btn-info py-1 px-3 rounded-pill text-dark fw-bold shadow-sm"
-                                                        style="font-size: 0.72rem;"
-                                                        onclick="openPayModal(<?php echo (int)$b['bill_id']; ?>, '<?php echo htmlspecialchars($b['utility_type'] . ' — ' . $b['provider_name'], ENT_QUOTES); ?>', <?php echo (float)$b['amount']; ?>)">
-                                                    <i class="bi bi-credit-card-2-front-fill me-1"></i> Pay Bill
-                                                </button>
-                                            <?php elseif ($b['status'] === 'PAID'): ?>
-                                                <span class="badge bg-success-subtle text-success rounded-pill px-2 py-1" style="font-size: 0.68rem;">
-                                                    <i class="bi bi-check-circle-fill me-1"></i>PAID
-                                                </span>
-                                            <?php elseif ($b['status'] === 'OVERDUE'): ?>
-                                                <span class="badge bg-danger rounded-pill px-2 py-1" style="font-size: 0.68rem;">OVERDUE</span>
-                                            <?php else: ?>
-                                                <span class="badge bg-warning text-dark rounded-pill px-2 py-1" style="font-size: 0.68rem;">PENDING</span>
-                                            <?php endif; ?>
+                                        <div class="col-sm-4">
+                                            <div class="hero-stat-pill h-100">
+                                                <div class="text-white-50 small mb-1" style="font-size: 0.7rem;">
+                                                    <?php echo ($role === 'Administrator') ? 'REGISTERED ACCOUNTS' : 'HIGHEST EXPENSE'; ?>
+                                                </div>
+                                                <h5 class="fw-bold mb-0 text-warning text-truncate">
+                                                    <?php echo ($role === 'Administrator') ? count($allUsersList) . ' Active Users' : htmlspecialchars($highestUtility); ?>
+                                                </h5>
+                                                <small class="text-white-50" style="font-size: 0.7rem;">
+                                                    <?php echo ($role === 'Administrator') ? count($consumersList) . ' Consumers' : 'Top Category'; ?>
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-4">
+                                            <div class="hero-stat-pill h-100">
+                                                <div class="text-white-50 small mb-1" style="font-size: 0.7rem;">PAYMENT STATUS</div>
+                                                <h4 class="fw-bold mb-0"><?php echo (int)$pendingCount; ?> <span class="fs-6 fw-normal text-white-50">Pending</span></h4>
+                                                <small class="fw-semibold" style="font-size: 0.72rem; color: #6EE7B7;"><?php echo (int)$paidCount; ?> Paid Bills</small>
+                                            </div>
                                         </div>
                                     </div>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <div class="text-center py-5 text-white-50">
-                                    <i class="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
-                                    No bills encoded yet.
                                 </div>
-                            <?php endif; ?>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="col-lg-6">
-                        <div class="squircle-card p-4 shadow-sm h-100 bg-white">
+                        <?php if ($role === 'Administrator'): ?>
+                            <div class="row g-4 mb-4">
+                                <div class="col-xl-8">
+                                    <div class="squircle-card p-4 shadow-sm bg-white h-100">
+                                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                            <div>
+                                                <h5 class="fw-bold mb-0" style="color: var(--navy-deep);">
+                                                    <i class="bi bi-people-fill text-primary me-2"></i>System User & Role Management
+                                                </h5>
+                                                <small class="text-muted">Promote accounts to Staff/Admin or toggle active status</small>
+                                            </div>
+                                            <span class="badge rounded-pill bg-primary-subtle text-primary px-3 py-2">
+                                                <?php echo count($allUsersList); ?> Total Accounts
+                                            </span>
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table class="table table-hover align-middle mb-0 small">
+                                                <thead class="table-light">
+                                                    <tr><th>ID</th><th>Full Name</th><th>Email</th><th>Assign Role</th><th>Status</th><th>Action</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    <?php foreach ($allUsersList as $u): $uRoleId = (int)$u['role_id']; ?>
+                                                    <tr>
+                                                        <td class="fw-bold">#<?php echo (int)$u['user_id']; ?></td>
+                                                        <td class="fw-semibold"><?php echo htmlspecialchars($u['full_name']); ?></td>
+                                                        <td><?php echo htmlspecialchars($u['email']); ?></td>
+                                                        <td>
+                                                            <form method="POST" action="dashboard.php" class="d-flex gap-1 m-0">
+                                                                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                                                                <input type="hidden" name="change_role_user_id" value="<?php echo (int)$u['user_id']; ?>">
+                                                                <select name="new_role_id" class="form-select form-select-sm rounded-pill" style="width: 140px;" <?php echo ((int)$u['user_id'] === $userId) ? 'disabled' : ''; ?>>
+                                                                    <option value="1" <?php echo ($uRoleId === 1) ? 'selected' : ''; ?>>Administrator</option>
+                                                                    <option value="2" <?php echo ($uRoleId === 2) ? 'selected' : ''; ?>>Staff</option>
+                                                                    <option value="3" <?php echo ($uRoleId === 3) ? 'selected' : ''; ?>>Consumer</option>
+                                                                </select>
+                                                                <?php if ((int)$u['user_id'] !== $userId): ?>
+                                                                    <button type="submit" class="btn btn-sm btn-pill-navy py-1 px-3">Save</button>
+                                                                <?php endif; ?>
+                                                            </form>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge rounded-pill bg-<?php echo ($u['status'] === 'active') ? 'success' : 'secondary'; ?>">
+                                                                <?php echo strtoupper(htmlspecialchars($u['status'])); ?>
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <?php if ((int)$u['user_id'] !== $userId): ?>
+                                                                <form method="POST" action="dashboard.php" class="m-0">
+                                                                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                                                                    <input type="hidden" name="toggle_user_id" value="<?php echo (int)$u['user_id']; ?>">
+                                                                    <input type="hidden" name="current_status" value="<?php echo htmlspecialchars($u['status']); ?>">
+                                                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                                                        <?php echo ($u['status'] === 'active') ? 'Deactivate' : 'Activate'; ?>
+                                                                    </button>
+                                                                </form>
+                                                            <?php else: ?>
+                                                                <span class="text-muted fst-italic">Current Admin</span>
+                                                            <?php endif; ?>
+                                                        </td>
+                                                    </tr>
+                                                    <?php endforeach; ?>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-xl-4">
+                                    <div class="navy-panel p-4 shadow h-100">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h5 class="fw-bold mb-0"><i class="bi bi-shield-check text-info me-2"></i>Recent Security Audit</h5>
+                                            <span class="badge rounded-pill bg-info text-dark"><?php echo count($auditLogsList); ?> Logs</span>
+                                        </div>
+                                        <div style="max-height: 340px; overflow-y: auto;">
+                                            <?php foreach (array_slice($auditLogsList, 0, 8) as $log):
+                                                $actType = $log['action_type'] ?? $log['action'] ?? 'EVENT';
+                                                $actDesc = $log['description'] ?? $log['details'] ?? $log['action_description'] ?? 'System activity recorded';
+                                                $actUser = $log['full_name'] ?? (!empty($log['user_id']) ? 'User #' . $log['user_id'] : 'System');
+                                            ?>
+                                                <div class="py-2 border-bottom border-light border-opacity-10 small">
+                                                    <div class="d-flex justify-content-between">
+                                                        <span class="fw-bold text-info"><?php echo htmlspecialchars((string)$actType); ?></span>
+                                                        <span class="text-white-50" style="font-size: 0.7rem;"><?php echo htmlspecialchars((string)($log['created_at'] ?? '')); ?></span>
+                                                    </div>
+                                                    <div class="text-white small"><?php echo htmlspecialchars((string)$actDesc); ?></div>
+                                                    <small class="text-white-50" style="font-size: 0.68rem;">By: <?php echo htmlspecialchars((string)$actUser); ?></small>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        <?php else: ?>
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div>
-                                    <h5 class="fw-bold mb-0" style="color: var(--navy-deep);">Spend Analytics & Breakdown</h5>
-                                    <small class="text-muted">Compare utility proportions across categories</small>
-                                </div>
-                                <span class="badge rounded-pill px-3 py-2 text-white" style="background: var(--navy-deep);">Live Charts</span>
+                                <h5 class="fw-bold mb-0" style="color: var(--navy-deep);">
+                                    <i class="bi bi-lightning-charge-fill text-primary me-1"></i> Your Subscribed Utility Cards
+                                </h5>
+                                <small class="text-muted">Pay any pending bill online to automatically settle it</small>
                             </div>
-                            <div class="row g-3 align-items-center">
-                                <div class="col-sm-5 text-center">
-                                    <div style="height: 200px;"><canvas id="doughnutChart"></canvas></div>
-                                </div>
-                                <div class="col-sm-7">
-                                    <div style="height: 200px;"><canvas id="waveChart"></canvas></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <div class="tab-pane fade" id="tab-transactions" role="tabpanel">
-                <div class="squircle-card p-4 shadow-sm bg-white mb-4">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                        <h4 class="fw-bold mb-0" style="color: var(--navy-deep);">All Recorded Bills Ledger</h4>
-                        <input type="text" id="tableSearch" class="form-control custom-input py-2" style="max-width: 260px;" placeholder="Search utility, provider..." onkeyup="filterTable()">
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle" id="historyTable">
-                            <thead class="table-light">
-                                <tr>
-                                    <?php if ($role !== 'Consumer'): ?><th>Consumer</th><?php endif; ?>
-                                    <th>Utility</th>
-                                    <th>Company</th>
-                                    <th>Consumption</th>
-                                    <th>Amount</th>
-                                    <th>Due Date</th>
-                                    <th>Status</th>
-                                    <?php if ($role === 'Consumer'): ?><th class="text-end">Payment</th><?php endif; ?>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (empty($allBills)): ?>
-                                    <tr><td colspan="7" class="text-center text-muted py-4">No bills encoded yet.</td></tr>
+                            <div class="row g-4 mb-4">
+                                <?php if (empty($mySubscriptions)): ?>
+                                    <div class="col-12">
+                                        <div class="squircle-card p-5 text-center bg-white h-100 d-flex flex-column justify-content-center align-items-center">
+                                            <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px; background: rgba(28, 104, 197, 0.1); color: var(--blue-med);">
+                                                <i class="bi bi-sliders fs-3"></i>
+                                            </div>
+                                            <h5 class="fw-bold mb-1" style="color: var(--navy-deep);">Your dashboard starts clean at ₱0.00</h5>
+                                            <p class="text-muted small mb-3" style="max-width: 460px;">
+                                                Select which bills you hold (Electricity, Water, or Internet) and your Pampanga provider to create your live cards.
+                                            </p>
+                                            <button class="btn btn-pill-navy btn-sm px-4" data-bs-toggle="modal" data-bs-target="#chooseUtilitiesModal">
+                                                Choose My Utilities Now
+                                            </button>
+                                        </div>
+                                    </div>
                                 <?php else: ?>
-                                    <?php foreach ($allBills as $bill): ?>
-                                    <tr>
-                                        <?php if ($role !== 'Consumer'): ?>
-                                            <td class="fw-semibold"><?php echo htmlspecialchars($bill['full_name'] ?? 'User'); ?></td>
-                                        <?php endif; ?>
-                                        <td class="fw-semibold"><?php echo htmlspecialchars($bill['utility_type']); ?></td>
-                                        <td><?php echo htmlspecialchars($bill['provider_name']); ?></td>
-                                        <td><?php echo $bill['consumption'] > 0 ? number_format($bill['consumption'], 0) : '-'; ?></td>
-                                        <td class="fw-bold">₱<?php echo number_format($bill['amount'], 2); ?></td>
-                                        <td><?php echo date('M j, Y', strtotime($bill['due_date'])); ?></td>
-                                        <td>
-                                            <span class="badge rounded-pill bg-<?php echo $bill['status'] === 'PAID' ? 'success' : ($bill['status'] === 'OVERDUE' ? 'danger' : 'warning text-dark'); ?>">
-                                                <?php echo htmlspecialchars($bill['status']); ?>
-                                            </span>
-                                        </td>
-                                        <?php if ($role === 'Consumer'): ?>
-                                        <td class="text-end">
-                                            <?php if ($bill['status'] !== 'PAID'): ?>
-                                                <button type="button"
-                                                        class="btn btn-sm btn-pill-aqua py-1 px-3"
-                                                        onclick="openPayModal(<?php echo (int)$bill['bill_id']; ?>, '<?php echo htmlspecialchars($bill['utility_type'] . ' — ' . $bill['provider_name'], ENT_QUOTES); ?>', <?php echo (float)$bill['amount']; ?>)">
-                                                    Pay Online
-                                                </button>
-                                            <?php else: ?>
-                                                <span class="text-success small fw-bold"><i class="bi bi-patch-check-fill me-1"></i>Paid</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <?php endif; ?>
-                                    </tr>
+                                    <?php
+                                    $cardStyles = ['card-blue-primary', 'card-aqua-secondary', 'card-indigo-tertiary'];
+                                    foreach ($mySubscriptions as $idx => $sub):
+                                        $uType      = $sub['utility_type'];
+                                        $provider   = $sub['provider_name'];
+                                        $bill       = $latestBillByType[$uType] ?? null;
+                                        $cardClass  = $cardStyles[$idx % count($cardStyles)];
+                                        $iconClass  = ($uType === 'Electricity') ? 'bi-lightning-charge-fill' : (($uType === 'Water') ? 'bi-droplet-fill' : 'bi-wifi');
+                                        $displayAmt = $bill ? (float)$bill['amount'] : 0;
+                                    ?>
+                                    <div class="col-12 col-md-4">
+                                        <div class="<?php echo $cardClass; ?> p-4 shadow-sm h-100 d-flex flex-column justify-content-between">
+                                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                                <div>
+                                                    <span class="badge bg-white bg-opacity-25 text-white rounded-pill mb-2" style="font-size: 0.68rem;">
+                                                        <?php echo htmlspecialchars($provider); ?>
+                                                    </span>
+                                                    <h6 class="fw-bold mb-0"><?php echo htmlspecialchars($uType); ?></h6>
+                                                </div>
+                                                <div class="utility-icon-orb"><i class="bi <?php echo $iconClass; ?>"></i></div>
+                                            </div>
+                                            <div class="my-2">
+                                                <small class="opacity-75 d-block" style="font-size: 0.72rem;">Current Recorded Amount</small>
+                                                <h2 class="fw-bold mb-0">₱<?php echo number_format($displayAmt, 2); ?></h2>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center pt-3 mt-2 border-top border-white border-opacity-10">
+                                                <span class="small opacity-75" style="font-size: 0.74rem;">
+                                                    <?php echo $bill ? 'Due ' . date('M j, Y', strtotime($bill['due_date'])) : 'No active bill yet'; ?>
+                                                </span>
+                                                <?php if ($bill): ?>
+                                                    <?php if ($bill['status'] === 'PAID'): ?>
+                                                        <span class="badge bg-success rounded-pill px-2 py-1" style="font-size: 0.68rem;">
+                                                            <i class="bi bi-check-circle-fill me-1"></i>PAID
+                                                        </span>
+                                                    <?php else: ?>
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-warning fw-bold text-dark rounded-pill py-0 px-3 shadow-sm"
+                                                                style="font-size: 0.72rem;"
+                                                                onclick="openPayModal(<?php echo (int)$bill['bill_id']; ?>, '<?php echo htmlspecialchars($uType . ' — ' . $provider, ENT_QUOTES); ?>', <?php echo $displayAmt; ?>)">
+                                                            <i class="bi bi-wallet2 me-1"></i>Pay Now
+                                                        </button>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <span class="badge bg-white bg-opacity-25 text-white rounded-pill" style="font-size: 0.65rem;">₱0.00</span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                            </div>
+                        <?php endif; ?>
 
-                <div class="squircle-card p-4 shadow-sm bg-white">
-                    <h4 class="fw-bold mb-3" style="color: var(--navy-deep);">Official Digital Payment Receipts</h4>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle small">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Reference No.</th>
-                                    <th>Utility & Provider</th>
-                                    <th>Payment Channel</th>
-                                    <th>Account / Mobile</th>
-                                    <th>Amount Paid</th>
-                                    <th>Mode</th>
-                                    <th>Timestamp</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (empty($myReceipts)): ?>
-                                    <tr><td colspan="7" class="text-center text-muted py-4">No payments completed yet.</td></tr>
-                                <?php else: ?>
-                                    <?php foreach ($myReceipts as $r): ?>
-                                    <tr>
-                                        <td><code class="fw-bold text-primary"><?php echo htmlspecialchars($r['reference_no']); ?></code></td>
-                                        <td class="fw-semibold"><?php echo htmlspecialchars($r['utility_type'] . ' — ' . $r['provider_name']); ?></td>
-                                        <td><span class="badge bg-light text-dark border rounded-pill"><?php echo htmlspecialchars($r['payment_channel']); ?></span></td>
-                                        <td class="text-muted"><?php echo htmlspecialchars($r['account_identifier'] ?: 'Branch Walk-In'); ?></td>
-                                        <td class="fw-bold text-success">₱<?php echo number_format((float)$r['amount_paid'], 2); ?></td>
-                                        <td>
-                                            <span class="badge rounded-pill bg-<?php echo $r['payment_mode'] === 'ONLINE_INSTANT' ? 'success' : 'secondary'; ?>">
-                                                <?php echo htmlspecialchars($r['payment_mode']); ?>
-                                            </span>
-                                        </td>
-                                        <td class="text-muted"><?php echo htmlspecialchars($r['paid_at']); ?></td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                        <div class="row g-4">
+                            <div class="col-lg-6">
+                                <div class="navy-panel p-4 shadow h-100">
+                                    <div class="d-flex justify-content-between align-items-center mb-4">
+                                        <div>
+                                            <h5 class="fw-bold mb-0">
+                                                <?php echo ($role === 'Consumer') ? 'Recent Transactions & Alerts' : 'All Consumer Billing Feed'; ?>
+                                            </h5>
+                                            <small class="text-white-50">
+                                                <?php echo ($role === 'Consumer') ? 'Pay online to automatically mark bills as PAID' : 'Live monitoring of encoded consumer statements and payment statuses'; ?>
+                                            </small>
+                                        </div>
+                                        <span class="badge rounded-pill px-3 py-2" style="background: rgba(56, 189, 248, 0.2); color: #38BDF8;">
+                                            <?php echo count($allBills); ?> Records
+                                        </span>
+                                    </div>
+
+                                    <?php if (count($allBills) > 0): ?>
+                                        <?php foreach (array_slice($allBills, 0, 5) as $b): ?>
+                                            <div class="d-flex justify-content-between align-items-center py-3 border-bottom border-light border-opacity-10">
+                                                <div class="d-flex align-items-center gap-3">
+                                                    <div class="rounded-4 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; background: rgba(43, 169, 224, 0.18); color: #38BDF8;">
+                                                        <i class="bi bi-receipt fs-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-bold">
+                                                            <?php echo htmlspecialchars($b['utility_type'] . ' — ' . $b['provider_name']); ?>
+                                                            <?php if ($role !== 'Consumer'): ?>
+                                                                <span class="badge bg-info text-dark ms-1" style="font-size: 0.65rem;"><?php echo htmlspecialchars($b['full_name'] ?? ''); ?></span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <div class="text-white-50 small">
+                                                            Due: <?php echo date('M j, Y', strtotime($b['due_date'])); ?>
+                                                            <?php if ($b['consumption'] > 0): ?>
+                                                                • <?php echo number_format($b['consumption'], 0); ?> <?php echo $b['utility_type'] === 'Electricity' ? 'kWh' : 'm³'; ?>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="text-end">
+                                                    <div class="fw-bold fs-5">₱<?php echo number_format($b['amount'], 2); ?></div>
+                                                    <?php if ($role === 'Consumer' AND $b['status'] !== 'PAID'): ?>
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-info py-1 px-3 rounded-pill text-dark fw-bold shadow-sm"
+                                                                style="font-size: 0.72rem;"
+                                                                onclick="openPayModal(<?php echo (int)$b['bill_id']; ?>, '<?php echo htmlspecialchars($b['utility_type'] . ' — ' . $b['provider_name'], ENT_QUOTES); ?>', <?php echo (float)$b['amount']; ?>)">
+                                                            <i class="bi bi-credit-card-2-front-fill me-1"></i> Pay Bill
+                                                        </button>
+                                                    <?php elseif ($b['status'] === 'PAID'): ?>
+                                                        <span class="badge bg-success-subtle text-success rounded-pill px-2 py-1" style="font-size: 0.68rem;">
+                                                            <i class="bi bi-check-circle-fill me-1"></i>PAID
+                                                        </span>
+                                                    <?php elseif ($b['status'] === 'OVERDUE'): ?>
+                                                        <span class="badge bg-danger rounded-pill px-2 py-1" style="font-size: 0.68rem;">OVERDUE</span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-warning text-dark rounded-pill px-2 py-1" style="font-size: 0.68rem;">PENDING</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <div class="text-center py-5 text-white-50">
+                                            <i class="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
+                                            No bills encoded yet.
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-6">
+                                <div class="squircle-card p-4 shadow-sm h-100 bg-white">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div>
+                                            <h5 class="fw-bold mb-0" style="color: var(--navy-deep);">Spend Analytics & Breakdown</h5>
+                                            <small class="text-muted">Compare utility proportions across categories</small>
+                                        </div>
+                                        <span class="badge rounded-pill px-3 py-2 text-white" style="background: var(--navy-deep);">Live Charts</span>
+                                    </div>
+                                    <div class="row g-3 align-items-center">
+                                        <div class="col-sm-5 text-center">
+                                            <div style="height: 200px;"><canvas id="doughnutChart"></canvas></div>
+                                        </div>
+                                        <div class="col-sm-7">
+                                            <div style="height: 200px;"><canvas id="waveChart"></canvas></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="tab-pane fade" id="tab-transactions" role="tabpanel">
+                        <div class="squircle-card p-4 shadow-sm bg-white mb-4">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                <h4 class="fw-bold mb-0" style="color: var(--navy-deep);">All Recorded Bills Ledger</h4>
+                                <input type="text" id="tableSearch" class="form-control custom-input py-2" style="max-width: 260px;" placeholder="Search utility, provider..." onkeyup="filterTable()">
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle" id="historyTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <?php if ($role !== 'Consumer'): ?><th>Consumer</th><?php endif; ?>
+                                            <th>Utility</th>
+                                            <th>Company</th>
+                                            <th>Consumption</th>
+                                            <th>Amount</th>
+                                            <th>Due Date</th>
+                                            <th>Status</th>
+                                            <?php if ($role === 'Consumer'): ?><th class="text-end">Payment</th><?php endif; ?>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($allBills)): ?>
+                                            <tr><td colspan="7" class="text-center text-muted py-4">No bills encoded yet.</td></tr>
+                                        <?php else: ?>
+                                            <?php foreach ($allBills as $bill): ?>
+                                            <tr>
+                                                <?php if ($role !== 'Consumer'): ?>
+                                                    <td class="fw-semibold"><?php echo htmlspecialchars($bill['full_name'] ?? 'User'); ?></td>
+                                                <?php endif; ?>
+                                                <td class="fw-semibold"><?php echo htmlspecialchars($bill['utility_type']); ?></td>
+                                                <td><?php echo htmlspecialchars($bill['provider_name']); ?></td>
+                                                <td><?php echo $bill['consumption'] > 0 ? number_format($bill['consumption'], 0) : '-'; ?></td>
+                                                <td class="fw-bold">₱<?php echo number_format($bill['amount'], 2); ?></td>
+                                                <td><?php echo date('M j, Y', strtotime($bill['due_date'])); ?></td>
+                                                <td>
+                                                    <span class="badge rounded-pill bg-<?php echo $bill['status'] === 'PAID' ? 'success' : ($bill['status'] === 'OVERDUE' ? 'danger' : 'warning text-dark'); ?>">
+                                                        <?php echo htmlspecialchars($bill['status']); ?>
+                                                    </span>
+                                                </td>
+                                                <?php if ($role === 'Consumer'): ?>
+                                                <td class="text-end">
+                                                    <?php if ($bill['status'] !== 'PAID'): ?>
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-pill-aqua py-1 px-3"
+                                                                onclick="openPayModal(<?php echo (int)$bill['bill_id']; ?>, '<?php echo htmlspecialchars($bill['utility_type'] . ' — ' . $bill['provider_name'], ENT_QUOTES); ?>', <?php echo (float)$bill['amount']; ?>)">
+                                                            Pay Online
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <span class="text-success small fw-bold"><i class="bi bi-patch-check-fill me-1"></i>Paid</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <?php endif; ?>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="squircle-card p-4 shadow-sm bg-white">
+                            <h4 class="fw-bold mb-3" style="color: var(--navy-deep);">Official Digital Payment Receipts</h4>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle small">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Reference No.</th>
+                                            <th>Utility & Provider</th>
+                                            <th>Payment Channel</th>
+                                            <th>Account / Mobile</th>
+                                            <th>Amount Paid</th>
+                                            <th>Mode</th>
+                                            <th>Timestamp</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($myReceipts)): ?>
+                                            <tr><td colspan="7" class="text-center text-muted py-4">No payments completed yet.</td></tr>
+                                        <?php else: ?>
+                                            <?php foreach ($myReceipts as $r): ?>
+                                            <tr>
+                                                <td><code class="fw-bold text-primary"><?php echo htmlspecialchars($r['reference_no']); ?></code></td>
+                                                <td class="fw-semibold"><?php echo htmlspecialchars($r['utility_type'] . ' — ' . $r['provider_name']); ?></td>
+                                                <td><span class="badge bg-light text-dark border rounded-pill"><?php echo htmlspecialchars($r['payment_channel']); ?></span></td>
+                                                <td class="text-muted"><?php echo htmlspecialchars($r['account_identifier'] ?: 'Branch Walk-In'); ?></td>
+                                                <td class="fw-bold text-success">₱<?php echo number_format((float)$r['amount_paid'], 2); ?></td>
+                                                <td>
+                                                    <span class="badge rounded-pill bg-<?php echo $r['payment_mode'] === 'ONLINE_INSTANT' ? 'success' : 'secondary'; ?>">
+                                                        <?php echo htmlspecialchars($r['payment_mode']); ?>
+                                                    </span>
+                                                </td>
+                                                <td class="text-muted"><?php echo htmlspecialchars($r['paid_at']); ?></td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <?php if ($role === 'Administrator'): ?>
+                    <div class="tab-pane fade" id="tab-audit" role="tabpanel">
+                        <div class="squircle-card p-4 shadow-sm bg-white">
+                            <h4 class="fw-bold mb-3" style="color: var(--navy-deep);">Full System Security Audit Logs</h4>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle small">
+                                    <thead class="table-light">
+                                        <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Description</th><th>IP Address</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($auditLogsList as $log):
+                                            $actType = $log['action_type'] ?? $log['action'] ?? 'EVENT';
+                                            $actDesc = $log['description'] ?? $log['details'] ?? $log['action_description'] ?? 'System activity recorded';
+                                            $actUser = $log['full_name'] ?? (!empty($log['user_id']) ? 'User #' . $log['user_id'] : 'System');
+                                        ?>
+                                        <tr>
+                                            <td class="text-muted"><?php echo htmlspecialchars((string)($log['created_at'] ?? '')); ?></td>
+                                            <td class="fw-semibold"><?php echo htmlspecialchars((string)$actUser); ?></td>
+                                            <td><span class="badge bg-dark rounded-pill px-3 py-1"><?php echo htmlspecialchars((string)$actType); ?></span></td>
+                                            <td><?php echo htmlspecialchars((string)$actDesc); ?></td>
+                                            <td class="text-muted"><?php echo htmlspecialchars((string)($log['ip_address'] ?? '127.0.0.1')); ?></td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <div class="tab-pane fade" id="tab-profile" role="tabpanel">
+                        <div class="squircle-card p-5 shadow-sm bg-white mx-auto text-center" style="max-width: 480px;">
+                            <div class="rounded-circle d-inline-flex align-items-center justify-content-center text-white mb-3 shadow" style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--blue-med), var(--navy-deep));">
+                                <i class="bi bi-person-fill display-5"></i>
+                            </div>
+                            <h4 class="fw-bold mb-1" style="color: var(--navy-deep);"><?php echo htmlspecialchars($currentUser['name']); ?></h4>
+                            <p class="text-muted small mb-2"><?php echo htmlspecialchars($currentUser['email']); ?></p>
+                            <span class="badge rounded-pill px-3 py-2 mb-4" style="background: var(--navy-deep);"><?php echo htmlspecialchars($role); ?> Account</span>
+
+                            <div class="text-start bg-light rounded-4 p-3 border small">
+                                <div class="d-flex justify-content-between py-2 border-bottom">
+                                    <span class="text-muted">Account ID</span>
+                                    <span class="fw-bold" style="color: var(--navy-deep);">#<?php echo (int)$liveUser['user_id']; ?></span>
+                                </div>
+                                <div class="d-flex justify-content-between py-2 border-bottom">
+                                    <span class="text-muted">Account Status</span>
+                                    <span class="badge rounded-pill bg-success"><?php echo strtoupper(htmlspecialchars($liveUser['status'] ?? 'active')); ?></span>
+                                </div>
+                                <div class="d-flex justify-content-between py-2 border-bottom">
+                                    <span class="text-muted">Last Login</span>
+                                    <span class="fw-semibold"><?php echo !empty($liveUser['last_login']) ? date('M j, Y g:i A', strtotime($liveUser['last_login'])) : 'Active Session'; ?></span>
+                                </div>
+                                <div class="d-flex justify-content-between pt-2">
+                                    <span class="text-muted">Member Since</span>
+                                    <span class="fw-semibold"><?php echo !empty($liveUser['created_at']) ? date('M j, Y', strtotime($liveUser['created_at'])) : '—'; ?></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <?php if ($role === 'Consumer'): ?>
+    <div class="modal fade" id="payBillModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content squircle-card border-0 shadow-lg">
+                <div class="modal-header border-0 pb-0">
+                    <div>
+                        <span class="badge rounded-pill bg-success-subtle text-success mb-1" style="font-size: 0.68rem;">
+                            <i class="bi bi-shield-lock-fill me-1"></i> Automated Online Payment Gateway
+                        </span>
+                        <h5 class="modal-title fw-bold" style="color: var(--navy-deep);">Pay Utility Statement</h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form method="POST" action="dashboard.php">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                        <input type="hidden" name="submit_bill_payment" value="1">
+                        <input type="hidden" name="pay_bill_id" id="payBillIdInput">
+
+                        <div class="p-3 rounded-4 mb-3 text-white d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, var(--navy-deep), var(--blue-med));">
+                            <div>
+                                <small class="text-white-50 d-block" style="font-size: 0.72rem;">Utility & Provider</small>
+                                <span class="fw-bold" id="payBillerLabel">Electricity — Meralco</span>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-white-50 d-block" style="font-size: 0.72rem;">Amount Due</small>
+                                <h4 class="fw-bold mb-0 text-info" id="payAmountLabel">₱0.00</h4>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold" style="color: var(--navy-deep);">Choose Payment Method (Instant Online Recommended)</label>
+                            <select class="form-select custom-input py-2" name="payment_channel" id="paymentChannelSelect" onchange="handlePaymentChannelChange()" required>
+                                <optgroup label="Instant E-Wallets (Zero Queue)">
+                                    <option value="GCash" selected>GCash Express Checkout</option>
+                                    <option value="Maya (PayMaya)">Maya (PayMaya) Wallet</option>
+                                    <option value="GrabPay">GrabPay Wallet</option>
+                                    <option value="ShopeePay">ShopeePay Wallet</option>
+                                </optgroup>
+                                <optgroup label="Digital & Online Banking">
+                                    <option value="MariBank (SeaBank)">MariBank (SeaBank Instant Transfer)</option>
+                                    <option value="GoTyme Bank">GoTyme Bank</option>
+                                    <option value="BDO Online">BDO Unibank Online</option>
+                                    <option value="BPI Online">BPI Mobile / Online</option>
+                                    <option value="UnionBank">UnionBank Online</option>
+                                    <option value="LandBank iAccess">LandBank iAccess</option>
+                                </optgroup>
+                                <optgroup label="Cards & QR Ph">
+                                    <option value="Debit / Credit Card (Visa / Mastercard)">Debit or Credit Card (Visa / Mastercard)</option>
+                                    <option value="QR Ph Instant Scan">QR Ph National QR Scan</option>
+                                </optgroup>
+                                <optgroup label="Last Resort (Only If You Have No Digital Account)">
+                                    <option value="Nearest Branch / Over-the-Counter (Last Resort)">Nearest Physical Branch / Over-the-Counter (Last Option)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div id="onlineFieldsBox">
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold" id="accountFieldLabel">GCash Mobile Number (11 digits)</label>
+                                <input type="text" class="form-control custom-input py-2" name="account_identifier" id="accountFieldInput" placeholder="e.g. 09171234567" required>
+                            </div>
+                            <div class="alert alert-success rounded-4 py-2 px-3 small mb-3">
+                                <i class="bi bi-lightning-charge-fill me-1"></i>
+                                <strong>Automated Verification:</strong> Completing this payment generates an official digital receipt and <strong>automatically marks your bill as PAID</strong>.
+                            </div>
+                        </div>
+
+                        <div id="walkInNoticeBox" style="display: none;">
+                            <div class="alert alert-warning rounded-4 py-3 px-3 small mb-3">
+                                <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Physical Branch Walk-In (Last Option Only)</div>
+                                UtiliSense is programmed so you never have to visit a physical store. Choose this <strong>only if you have no access to GCash, Maya, MariBank, or a bank card</strong>. Your bill will stay <strong>PENDING</strong> until paid at the nearest Pampanga branch and verified by Staff.
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-pill-aqua w-100 py-3 shadow-sm" id="paySubmitBtn">
+                            <i class="bi bi-check2-circle me-1"></i> Pay Now & Automatically Mark as Paid
+                        </button>
+                    </form>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <?php if ($role === 'Administrator'): ?>
-            <div class="tab-pane fade" id="tab-audit" role="tabpanel">
-                <div class="squircle-card p-4 shadow-sm bg-white">
-                    <h4 class="fw-bold mb-3" style="color: var(--navy-deep);">Full System Security Audit Logs</h4>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle small">
-                            <thead class="table-light">
-                                <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Description</th><th>IP Address</th></tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($auditLogsList as $log):
-                                    $actType = $log['action_type'] ?? $log['action'] ?? 'EVENT';
-                                    $actDesc = $log['description'] ?? $log['details'] ?? $log['action_description'] ?? 'System activity recorded';
-                                    $actUser = $log['full_name'] ?? (!empty($log['user_id']) ? 'User #' . $log['user_id'] : 'System');
-                                ?>
-                                <tr>
-                                    <td class="text-muted"><?php echo htmlspecialchars((string)($log['created_at'] ?? '')); ?></td>
-                                    <td class="fw-semibold"><?php echo htmlspecialchars((string)$actUser); ?></td>
-                                    <td><span class="badge bg-dark rounded-pill px-3 py-1"><?php echo htmlspecialchars((string)$actType); ?></span></td>
-                                    <td><?php echo htmlspecialchars((string)$actDesc); ?></td>
-                                    <td class="text-muted"><?php echo htmlspecialchars((string)($log['ip_address'] ?? '127.0.0.1')); ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <?php endif; ?>
-
-           <div class="tab-pane fade" id="tab-profile" role="tabpanel">
-                <div class="squircle-card p-5 shadow-sm bg-white mx-auto text-center" style="max-width: 480px;">
-                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center text-white mb-3 shadow" style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--blue-med), var(--navy-deep));">
-                        <i class="bi bi-person-fill display-5"></i>
-                    </div>
-                    <h4 class="fw-bold mb-1" style="color: var(--navy-deep);"><?php echo htmlspecialchars($currentUser['name']); ?></h4>
-                    <p class="text-muted small mb-2"><?php echo htmlspecialchars($currentUser['email']); ?></p>
-                    <span class="badge rounded-pill px-3 py-2 mb-4" style="background: var(--navy-deep);"><?php echo htmlspecialchars($role); ?> Account</span>
-
-                    <div class="text-start bg-light rounded-4 p-3 border small">
-                        <div class="d-flex justify-content-between py-2 border-bottom">
-                            <span class="text-muted">Account ID</span>
-                            <span class="fw-bold" style="color: var(--navy-deep);">#<?php echo (int)$liveUser['user_id']; ?></span>
-                        </div>
-                        <div class="d-flex justify-content-between py-2 border-bottom">
-                            <span class="text-muted">Account Status</span>
-                            <span class="badge rounded-pill bg-success"><?php echo strtoupper(htmlspecialchars($liveUser['status'] ?? 'active')); ?></span>
-                        </div>
-                        <div class="d-flex justify-content-between py-2 border-bottom">
-                            <span class="text-muted">Last Login</span>
-                            <span class="fw-semibold"><?php echo !empty($liveUser['last_login']) ? date('M j, Y g:i A', strtotime($liveUser['last_login'])) : 'Active Session'; ?></span>
-                        </div>
-                        <div class="d-flex justify-content-between pt-2">
-                            <span class="text-muted">Member Since</span>
-                            <span class="fw-semibold"><?php echo !empty($liveUser['created_at']) ? date('M j, Y', strtotime($liveUser['created_at'])) : '—'; ?></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
     <div class="modal fade" id="chooseUtilitiesModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content squircle-card border-0 shadow-lg">
@@ -905,7 +1067,7 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
             </div>
         </div>
     </div>
-
+    <?php endif; ?>
 
     <?php if ($role !== 'Consumer'): ?>
     <div class="modal fade" id="encodeBillModal" tabindex="-1" aria-hidden="true">
@@ -975,6 +1137,17 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function filterNumericAccountInput() {
+            const selectEl = document.getElementById('paymentChannelSelect');
+            const accInput = document.getElementById('accountFieldInput');
+            if (!selectEl) return;
+            const channel = selectEl.value;
+            if (channel.indexOf('Card') === -1) {
+                const maxLen = (channel.indexOf('Bank') !== -1) ? 16 : 11;
+                accInput.value = accInput.value.replace(/\D/g, '').slice(0, maxLen);
+            }
+        }
+
         function openPayModal(billId, billerText, amount) {
             const modalEl = document.getElementById('payBillModal');
             if (!modalEl) return;
@@ -996,6 +1169,14 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
             const accInput = document.getElementById('accountFieldInput');
             const submitBtn = document.getElementById('paySubmitBtn');
 
+            accInput.value = '';
+            accInput.removeAttribute('pattern');
+            accInput.removeAttribute('minlength');
+            accInput.removeAttribute('maxlength');
+            accInput.removeAttribute('inputmode');
+            accInput.removeAttribute('title');
+            accInput.oninput = filterNumericAccountInput;
+
             if (channel.indexOf('Nearest Branch') !== -1) {
                 onlineBox.style.display = 'none';
                 walkInBox.style.display = 'block';
@@ -1012,12 +1193,25 @@ $firstName = trim(explode(' ', $currentUser['name'])[0], ',');
                 if (channel.indexOf('Card') !== -1) {
                     accLabel.textContent = 'Cardholder Name & Last 4 Digits of Card';
                     accInput.placeholder = 'e.g. Juan Dela Cruz •••• 4821';
+                    accInput.setAttribute('minlength', '4');
+                    accInput.setAttribute('maxlength', '40');
+                    accInput.setAttribute('title', 'Enter cardholder name and last 4 digits');
                 } else if (channel.indexOf('Bank') !== -1) {
-                    accLabel.textContent = channel + ' Account Number';
-                    accInput.placeholder = 'Enter your bank account number';
+                    accLabel.textContent = channel + ' Account Number (10–16 digits)';
+                    accInput.placeholder = 'Enter 10 to 16 digit account number';
+                    accInput.setAttribute('inputmode', 'numeric');
+                    accInput.setAttribute('minlength', '10');
+                    accInput.setAttribute('maxlength', '16');
+                    accInput.setAttribute('pattern', '^[0-9]{10,16}$');
+                    accInput.setAttribute('title', 'Enter a valid 10 to 16 digit bank account number');
                 } else {
-                    accLabel.textContent = channel + ' Mobile Number';
-                    accInput.placeholder = 'e.g. 0917-XXX-XXXX';
+                    accLabel.textContent = channel + ' Mobile Number (11 digits)';
+                    accInput.placeholder = 'e.g. 09171234567';
+                    accInput.setAttribute('inputmode', 'numeric');
+                    accInput.setAttribute('minlength', '11');
+                    accInput.setAttribute('maxlength', '11');
+                    accInput.setAttribute('pattern', '^09[0-9]{9}$');
+                    accInput.setAttribute('title', 'Enter a valid 11-digit PH mobile number starting with 09');
                 }
             }
         }
